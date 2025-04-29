@@ -4,12 +4,6 @@ require 'sequel'
 require 'java'
 require_relative 'lib/ojdbc8-19.26.0.0.jar'
 require 'dotenv'
-require_relative 'settings/models/security_log'
-require_relative 'settings/models/alert'
-require_relative 'settings/models/metric'
-require_relative 'settings/services/security_analyzer'
-require_relative 'settings/endpoints'
-require_relative 'settings/middleware'
 Dotenv.load
 
 # =============================================
@@ -24,7 +18,7 @@ module SIEM
     def initialize
       @oracle_host = ENV['ORACLE_HOST']
       @oracle_port = ENV['ORACLE_PORT'] || '1521'
-      @oracle_service_name = ENV['ORACLE_SERVICE_NAME']
+      @oracle_service_name = ENV['ORACLE_SERVICE_NAME'] || 'orclpdb1'
       @oracle_username = ENV['ORACLE_USERNAME']
       @oracle_password = ENV['ORACLE_PASSWORD']
       @log_level = ENV['LOG_LEVEL'] || 'info'
@@ -38,7 +32,7 @@ module SIEM
     end
 
     def oracle_connection_string
-      "jdbc:oracle:thin:@#{@oracle_host}:#{@oracle_port}:#{@oracle_service_name}"
+      "jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=#{@oracle_host})(PORT=#{@oracle_port}))(CONNECT_DATA=(SERVICE_NAME=#{@oracle_service_name})))"
     end
   end
 
@@ -67,12 +61,14 @@ module SIEM
   end
 end
 
+# Initialize database connection
 DB = SIEM::Database.connection
 
 # Create schema if it doesn't exist
 DB.execute("CREATE USER #{ENV['ORACLE_USERNAME']} IDENTIFIED BY #{ENV['ORACLE_PASSWORD']}") rescue nil
 DB.execute("GRANT CONNECT, RESOURCE TO #{ENV['ORACLE_USERNAME']}") rescue nil
 
+# Create tables if they don't exist
 DB.create_table? :security_logs do
   primary_key :id
   String :event_type, size: 50
@@ -103,6 +99,14 @@ DB.create_table? :metrics do
   String :source, size: 100
 end
 
+# Now load the models and other dependencies
+require_relative 'settings/models/security_log.rb'
+require_relative 'settings/models/alert.rb'
+require_relative 'settings/models/metric.rb'
+require_relative 'settings/services/security_analyzer.rb'
+require_relative 'settings/endpoints/endpoints.rb'
+require_relative 'settings/middleware/middleware.rb'
+
 # =============================================
 # Server Application
 # =============================================
@@ -114,42 +118,52 @@ module SIEM
     SIEM::Middleware.configure(self)
 
     configure do
-      set :bind, '0.0.0.0'
+      set :bind, '127.0.0.1'
       set :port, ENV['PORT'] || 4567
       set :logging, true
       set :dump_errors, true
       set :show_exceptions, true
+      set :views, File.join(File.dirname(__FILE__), 'dashboard/templates')
+      set :public_folder, File.join(File.dirname(__FILE__), 'dashboard/templates')
+      enable :static
     end
 
     # =============================================
     # Route Definitions
     # =============================================
+    get '/' do
+      erb :dashboard, layout: :layout
+    end
+
     get '/health' do
-      Endpoints.health_check
+      json Endpoints.health_check
     end
 
     post '/logs' do
-      Endpoints.create_log(request)
+      json Endpoints.create_log(request)
     end
 
     get '/logs' do
-      Endpoints.get_logs
+      json Endpoints.get_logs
     end
 
     get '/logs/user/:user_id' do
-      Endpoints.get_user_logs(params[:user_id])
+      json Endpoints.get_user_logs(params[:user_id])
     end
 
     get '/alerts' do
-      Endpoints.get_alerts
+      json Endpoints.get_alerts
     end
 
     put '/alerts/:id' do
-      Endpoints.update_alert(params[:id], request)
+      json Endpoints.update_alert(params[:id], request)
     end
 
     get '/metrics' do
-      Endpoints.get_metrics
+      json Endpoints.get_metrics
     end
   end
 end
+
+# Start the server
+SIEM::Server.run!

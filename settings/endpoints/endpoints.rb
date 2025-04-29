@@ -9,9 +9,9 @@ module SIEM
     def self.health_check
       begin
         DB.test_connection
-        json status: 'healthy', database: 'connected'
+        { status: 'healthy', database: 'connected' }
       rescue => e
-        json status: 'unhealthy', error: e.message
+        { status: 'unhealthy', error: e.message }
       end
     end
 
@@ -25,12 +25,12 @@ module SIEM
       log = SecurityLog.create_from_python_log(log_data)
       SecurityAnalyzer.analyze_log(log)
 
-      json status: 'received', log_id: log.id
+      { status: 'received', log_id: log.id }
     end
 
     def self.get_logs
       logs = SecurityLog.order(Sequel.desc(:timestamp)).limit(100).all
-      json logs: logs.map(&:to_hash)
+      { logs: logs.map(&:to_hash) }
     end
 
     def self.get_user_logs(user_id)
@@ -39,7 +39,7 @@ module SIEM
         .order(Sequel.desc(:timestamp))
         .limit(100)
         .all
-      json logs: logs.map(&:to_hash)
+      { logs: logs.map(&:to_hash) }
     end
 
     # =============================================
@@ -47,21 +47,21 @@ module SIEM
     # =============================================
     def self.get_alerts
       alerts = Alert.order(Sequel.desc(:timestamp)).limit(100).all
-      json alerts: alerts.map(&:to_hash)
+      { alerts: alerts.map(&:to_hash) }
     end
 
     def self.update_alert(alert_id, request)
       alert = Alert[alert_id]
-      return json error: 'Alert not found', status: 404 unless alert
+      return { error: 'Alert not found', status: 404 } unless alert
 
       request.body.rewind
       update_data = JSON.parse(request.body.read)
 
       if update_data['status'] && Alert::STATUSES.include?(update_data['status'])
         alert.update(status: update_data['status'])
-        json alert: alert.to_hash
+        { alert: alert.to_hash }
       else
-        json error: 'Invalid status', status: 400
+        { error: 'Invalid status', status: 400 }
       end
     end
 
@@ -73,7 +73,7 @@ module SIEM
       Metric::METRIC_TYPES.each do |metric_type|
         metrics[metric_type] = Metric.get_latest_metrics(metric_type)
       end
-      json metrics: metrics
+      { metrics: metrics }
     end
   end
 end

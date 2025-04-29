@@ -1,6 +1,6 @@
-<div class="row">
+<div class="row mb-4">
     <!-- Cards de Estatísticas -->
-    <div class="col-xl-3 col-md-6 mb-4">
+    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="100">
         <div class="card border-left-primary shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
@@ -17,7 +17,7 @@
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
+    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="200">
         <div class="card border-left-success shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
@@ -34,7 +34,7 @@
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
+    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="300">
         <div class="card border-left-warning shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
@@ -51,7 +51,7 @@
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
+    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="400">
         <div class="card border-left-info shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
@@ -72,10 +72,20 @@
 <!-- Gráficos -->
 <div class="row">
     <!-- Gráfico de Alertas por Tipo -->
-    <div class="col-xl-6 col-lg-6">
+    <div class="col-xl-6 col-lg-6" data-aos="fade-up" data-aos-delay="100">
         <div class="card shadow mb-4">
-            <div class="card-header py-3">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">Alertas por Tipo</h6>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-link dropdown-toggle" type="button" id="alertsChartDropdown" data-bs-toggle="dropdown">
+                        <i class='bx bx-dots-vertical-rounded'></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" data-chart="bar">Barras</a></li>
+                        <li><a class="dropdown-item" href="#" data-chart="pie">Pizza</a></li>
+                        <li><a class="dropdown-item" href="#" data-chart="line">Linha</a></li>
+                    </ul>
+                </div>
             </div>
             <div class="card-body">
                 <canvas id="alertsByTypeChart"></canvas>
@@ -84,24 +94,78 @@
     </div>
 
     <!-- Gráfico de Logins -->
-    <div class="col-xl-6 col-lg-6">
+    <div class="col-xl-6 col-lg-6" data-aos="fade-up" data-aos-delay="200">
         <div class="card shadow mb-4">
-            <div class="card-header py-3">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">Tentativas de Login</h6>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-link dropdown-toggle" type="button" id="loginsChartDropdown" data-bs-toggle="dropdown">
+                        <i class='bx bx-dots-vertical-rounded'></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" data-chart="line">Linha</a></li>
+                        <li><a class="dropdown-item" href="#" data-chart="area">Área</a></li>
+                    </ul>
+                </div>
             </div>
             <div class="card-body">
                 <canvas id="loginAttemptsChart"></canvas>
             </div>
         </div>
     </div>
+
+    <!-- Gráfico de Transações -->
+    <div class="col-xl-6 col-lg-6" data-aos="fade-up" data-aos-delay="300">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Transações por Hora</h6>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-link dropdown-toggle" type="button" id="transactionsChartDropdown" data-bs-toggle="dropdown">
+                        <i class='bx bx-dots-vertical-rounded'></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" data-chart="line">Linha</a></li>
+                        <li><a class="dropdown-item" href="#" data-chart="bar">Barras</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="transactionsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Risco -->
+    <div class="col-xl-6 col-lg-6" data-aos="fade-up" data-aos-delay="400">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Nível de Risco</h6>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-link dropdown-toggle" type="button" id="riskChartDropdown" data-bs-toggle="dropdown">
+                        <i class='bx bx-dots-vertical-rounded'></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" data-chart="gauge">Gauge</a></li>
+                        <li><a class="dropdown-item" href="#" data-chart="radar">Radar</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="riskLevelChart"></canvas>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Tabela de Alertas Recentes -->
-<div class="row">
+<div class="row" data-aos="fade-up" data-aos-delay="500">
     <div class="col-12">
         <div class="card shadow mb-4">
-            <div class="card-header py-3">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">Alertas Recentes</h6>
+                <button class="btn btn-sm btn-primary" id="refreshAlerts">
+                    <i class='bx bx-refresh'></i> Atualizar
+                </button>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -113,6 +177,7 @@
                                 <th>Severidade</th>
                                 <th>Mensagem</th>
                                 <th>Status</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -120,6 +185,51 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Detalhes do Alerta -->
+<div class="modal fade" id="alertDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes do Alerta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Informações Básicas</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <th>ID:</th>
+                                <td id="alertId"></td>
+                            </tr>
+                            <tr>
+                                <th>Data/Hora:</th>
+                                <td id="alertTimestamp"></td>
+                            </tr>
+                            <tr>
+                                <th>Severidade:</th>
+                                <td id="alertSeverity"></td>
+                            </tr>
+                            <tr>
+                                <th>Status:</th>
+                                <td id="alertStatus"></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Detalhes</h6>
+                        <div id="alertDetails"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary" id="updateAlertStatus">Atualizar Status</button>
             </div>
         </div>
     </div>

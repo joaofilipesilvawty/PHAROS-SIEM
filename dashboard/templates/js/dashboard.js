@@ -18,6 +18,63 @@ let state = {
     alertCount: 0
 };
 
+// Initialize AOS
+AOS.init({
+    duration: 800,
+    easing: 'ease-in-out',
+    once: true,
+    mirror: false
+});
+
+// Chart.js Global Configuration
+Chart.defaults.color = '#858796';
+Chart.defaults.font.family = "'Nunito', '-apple-system', 'system-ui', sans-serif";
+
+// Chart Type Configurations
+const chartTypes = {
+    alerts: {
+        bar: {
+            type: 'bar',
+            options: {
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        },
+        pie: {
+            type: 'pie',
+            options: {
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        },
+        line: {
+            type: 'line',
+            options: {
+                tension: 0.4
+            }
+        }
+    },
+    logins: {
+        line: {
+            type: 'line',
+            options: {
+                tension: 0.4
+            }
+        },
+        area: {
+            type: 'line',
+            options: {
+                fill: true,
+                tension: 0.4
+            }
+        }
+    }
+};
+
 // Inicialização
 document.addEventListener('DOMContentLoaded', function () {
     initializeDashboard();
@@ -381,6 +438,237 @@ function setupNotifications() {
 
 function showAlertsModal() {
     // TODO: Implementar modal de alertas
+}
+
+// Initialize Charts
+let charts = {};
+
+function initializeCharts() {
+    // Alerts by Type Chart
+    const alertsCtx = document.getElementById('alertsByTypeChart').getContext('2d');
+    charts.alerts = new Chart(alertsCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Tentativa de Invasão', 'Acesso Suspeito', 'Transação Suspeita', 'Erro de Sistema', 'Outros'],
+            datasets: [{
+                label: 'Número de Alertas',
+                data: [0, 0, 0, 0, 0],
+                backgroundColor: [
+                    'rgba(78, 115, 223, 0.8)',
+                    'rgba(28, 200, 138, 0.8)',
+                    'rgba(246, 194, 62, 0.8)',
+                    'rgba(231, 74, 59, 0.8)',
+                    'rgba(133, 135, 150, 0.8)'
+                ]
+            }]
+        },
+        options: chartTypes.alerts.bar.options
+    });
+
+    // Login Attempts Chart
+    const loginsCtx = document.getElementById('loginAttemptsChart').getContext('2d');
+    charts.logins = new Chart(loginsCtx, {
+        type: 'line',
+        data: {
+            labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+            datasets: [
+                {
+                    label: 'Sucesso',
+                    data: Array(24).fill(0),
+                    borderColor: 'rgba(28, 200, 138, 1)',
+                    backgroundColor: 'rgba(28, 200, 138, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'Falha',
+                    data: Array(24).fill(0),
+                    borderColor: 'rgba(231, 74, 59, 1)',
+                    backgroundColor: 'rgba(231, 74, 59, 0.1)',
+                    tension: 0.4
+                }
+            ]
+        },
+        options: chartTypes.logins.line.options
+    });
+
+    // Transactions Chart
+    const transactionsCtx = document.getElementById('transactionsChart').getContext('2d');
+    charts.transactions = new Chart(transactionsCtx, {
+        type: 'line',
+        data: {
+            labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+            datasets: [{
+                label: 'Volume de Transações',
+                data: Array(24).fill(0),
+                borderColor: 'rgba(54, 185, 204, 1)',
+                backgroundColor: 'rgba(54, 185, 204, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    // Risk Level Chart
+    const riskCtx = document.getElementById('riskLevelChart').getContext('2d');
+    charts.risk = new Chart(riskCtx, {
+        type: 'radar',
+        data: {
+            labels: ['Tentativas de Invasão', 'Transações Suspeitas', 'Erros de Sistema', 'Falhas de Login', 'Vulnerabilidades'],
+            datasets: [{
+                label: 'Nível de Risco',
+                data: [0, 0, 0, 0, 0],
+                backgroundColor: 'rgba(78, 115, 223, 0.2)',
+                borderColor: 'rgba(78, 115, 223, 1)',
+                pointBackgroundColor: 'rgba(78, 115, 223, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(78, 115, 223, 1)'
+            }]
+        },
+        options: {
+            elements: {
+                line: {
+                    tension: 0.1
+                }
+            },
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+// Update Charts
+function updateCharts() {
+    fetch('/metrics')
+        .then(response => response.json())
+        .then(data => {
+            // Update Alerts Chart
+            charts.alerts.data.datasets[0].data = [
+                data.metrics.invasion_attempts || 0,
+                data.metrics.suspicious_access || 0,
+                data.metrics.suspicious_transactions || 0,
+                data.metrics.system_errors || 0,
+                data.metrics.other_alerts || 0
+            ];
+            charts.alerts.update();
+
+            // Update Logins Chart
+            charts.logins.data.datasets[0].data = data.metrics.successful_logins || Array(24).fill(0);
+            charts.logins.data.datasets[1].data = data.metrics.failed_logins || Array(24).fill(0);
+            charts.logins.update();
+
+            // Update Transactions Chart
+            charts.transactions.data.datasets[0].data = data.metrics.transaction_volume || Array(24).fill(0);
+            charts.transactions.update();
+
+            // Update Risk Chart
+            charts.risk.data.datasets[0].data = [
+                data.metrics.invasion_risk || 0,
+                data.metrics.transaction_risk || 0,
+                data.metrics.system_risk || 0,
+                data.metrics.login_risk || 0,
+                data.metrics.vulnerability_risk || 0
+            ];
+            charts.risk.update();
+
+            // Update Statistics Cards with Animation
+            animateValue('alertsToday', data.metrics.alerts_today || 0);
+            animateValue('successfulLogins', data.metrics.total_successful_logins || 0);
+            animateValue('failedLogins', data.metrics.total_failed_logins || 0);
+            animateValue('suspiciousTransactions', data.metrics.total_suspicious_transactions || 0);
+        })
+        .catch(error => {
+            console.error('Error fetching metrics:', error);
+            showToast('Erro ao atualizar métricas', 'error');
+        });
+}
+
+// Animate Number Change
+function animateValue(elementId, end, duration = 1000) {
+    const obj = document.getElementById(elementId);
+    const start = parseInt(obj.innerHTML);
+    const range = end - start;
+    const minTimer = 50;
+    let stepTime = Math.abs(Math.floor(duration / range));
+    stepTime = Math.max(stepTime, minTimer);
+
+    let current = start;
+    const step = Math.sign(range);
+
+    function updateNumber() {
+        current += step;
+        obj.innerHTML = current;
+
+        if (current != end) {
+            setTimeout(updateNumber, stepTime);
+        }
+    }
+
+    updateNumber();
+}
+
+// Chart Type Switcher
+document.querySelectorAll('[data-chart]').forEach(button => {
+    button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const chartType = e.target.dataset.chart;
+        const chartId = e.target.closest('.card').querySelector('canvas').id;
+        const chartKey = chartId.replace('Chart', '');
+
+        if (charts[chartKey] && chartTypes[chartKey] && chartTypes[chartKey][chartType]) {
+            const config = chartTypes[chartKey][chartType];
+            const oldData = charts[chartKey].data;
+
+            charts[chartKey].destroy();
+            charts[chartKey] = new Chart(document.getElementById(chartId).getContext('2d'), {
+                type: config.type,
+                data: oldData,
+                options: config.options
+            });
+        }
+    });
+});
+
+// Alert Details Modal
+function showAlertDetails(alertId) {
+    fetch(`/alerts/${alertId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('alertId').textContent = data.alert.id;
+            document.getElementById('alertTimestamp').textContent = new Date(data.alert.timestamp).toLocaleString();
+            document.getElementById('alertSeverity').textContent = data.alert.severity;
+            document.getElementById('alertStatus').textContent = data.alert.status;
+            document.getElementById('alertDetails').innerHTML = `<pre>${JSON.stringify(data.alert.details, null, 2)}</pre>`;
+
+            const modal = new bootstrap.Modal(document.getElementById('alertDetailsModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error fetching alert details:', error);
+            showToast('Erro ao carregar detalhes do alerta', 'error');
+        });
+}
+
+// Toast Notifications
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    const toastBody = toast.querySelector('.toast-body');
+
+    toast.classList.remove('bg-success', 'bg-danger', 'bg-info');
+    toast.classList.add(`bg-${type === 'error' ? 'danger' : type}`);
+    toastBody.textContent = message;
+
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
 }
 
 // Exportar funções para testes
