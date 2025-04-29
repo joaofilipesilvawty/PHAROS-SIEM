@@ -9,7 +9,7 @@ module SIEM
 
     def self.authenticate(username, password)
       # TODO: Implementar autenticação segura com bcrypt
-      return nil unless username == 'admin' && password == 'admin123'
+      return nil unless username == 'admin' && password == 'joaofilipegsilva'
       new(id: 1, username: username)
     end
 

@@ -103,6 +103,7 @@ end
 require_relative 'settings/models/security_log.rb'
 require_relative 'settings/models/alert.rb'
 require_relative 'settings/models/metric.rb'
+require_relative 'settings/models/admin.rb'
 require_relative 'settings/services/security_analyzer.rb'
 require_relative 'settings/endpoints/endpoints.rb'
 require_relative 'settings/middleware/middleware.rb'
