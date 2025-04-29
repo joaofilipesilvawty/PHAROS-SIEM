@@ -1,0 +1,126 @@
+<div class="row">
+    <!-- Cards de Estatísticas -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Alertas Hoje</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="alertsToday">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class='bx bxs-bell bx-lg text-gray-300'></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Logins Bem-sucedidos</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="successfulLogins">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class='bx bxs-user-check bx-lg text-gray-300'></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Tentativas de Login Falhas</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="failedLogins">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class='bx bxs-user-x bx-lg text-gray-300'></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Transações Suspeitas</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="suspiciousTransactions">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class='bx bxs-error bx-lg text-gray-300'></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row">
+    <!-- Gráfico de Alertas por Tipo -->
+    <div class="col-xl-6 col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Alertas por Tipo</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="alertsByTypeChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Logins -->
+    <div class="col-xl-6 col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Tentativas de Login</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="loginAttemptsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de Alertas Recentes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Alertas Recentes</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="recentAlertsTable">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Tipo</th>
+                                <th>Severidade</th>
+                                <th>Mensagem</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dados serão preenchidos via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
