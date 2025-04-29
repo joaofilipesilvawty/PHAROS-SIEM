@@ -1,7 +1,8 @@
 require 'sinatra/base'
 require 'sinatra/json'
 require 'sequel'
-require 'ruby-oci8'
+require 'java'
+require_relative 'lib/ojdbc8-19.26.0.0.jar'
 require 'dotenv'
 require_relative 'settings/models/security_log'
 require_relative 'settings/models/alert'
@@ -12,7 +13,7 @@ require_relative 'settings/middleware'
 Dotenv.load
 
 # =============================================
-# Configuration Module
+# DATABASE CONFIGURATION Module
 # =============================================
 module SIEM
   class Configuration
@@ -37,7 +38,7 @@ module SIEM
     end
 
     def oracle_connection_string
-      "oracle://#{@oracle_username}:#{@oracle_password}@#{@oracle_host}:#{@oracle_port}/#{@oracle_service_name}"
+      "jdbc:oracle:thin:@#{@oracle_host}:#{@oracle_port}:#{@oracle_service_name}"
     end
   end
 
@@ -51,7 +52,13 @@ module SIEM
 
   module Database
     def self.connect
-      @connection ||= Sequel.connect(SIEM.config.oracle_connection_string)
+      @connection ||= Sequel.connect(
+        adapter: 'jdbc',
+        driver: 'oracle.jdbc.driver.OracleDriver',
+        url: SIEM.config.oracle_connection_string,
+        user: SIEM.config.oracle_username,
+        password: SIEM.config.oracle_password
+      )
     end
 
     def self.connection
@@ -66,10 +73,6 @@ DB = SIEM::Database.connection
 DB.execute("CREATE USER #{ENV['ORACLE_USERNAME']} IDENTIFIED BY #{ENV['ORACLE_PASSWORD']}") rescue nil
 DB.execute("GRANT CONNECT, RESOURCE TO #{ENV['ORACLE_USERNAME']}") rescue nil
 
-# =============================================
-# Database Schema Definition
-# =============================================
-# Create tables if they don't exist
 DB.create_table? :security_logs do
   primary_key :id
   String :event_type, size: 50
