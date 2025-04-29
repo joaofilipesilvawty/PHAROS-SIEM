@@ -125,14 +125,41 @@ module SIEM
       set :show_exceptions, true
       set :views, File.join(File.dirname(__FILE__), 'dashboard/templates')
       set :public_folder, File.join(File.dirname(__FILE__), 'dashboard/templates')
+      enable :sessions
       enable :static
     end
 
     # =============================================
     # Route Definitions
     # =============================================
-    get '/' do
+    get '/login' do
+      erb :login
+    end
+
+    post '/auth/login' do
+      result = Endpoints.login(request)
+      if result[:success]
+        redirect '/dashboard'
+      else
+        @error = result[:message]
+        erb :login
+      end
+    end
+
+    get '/auth/logout' do
+      Endpoints.logout(request)
+      redirect '/login'
+    end
+
+    get '/dashboard' do
+      unless Endpoints.current_user(request)
+        redirect '/login'
+      end
       erb :dashboard, layout: :layout
+    end
+
+    get '/' do
+      redirect '/dashboard'
     end
 
     get '/health' do

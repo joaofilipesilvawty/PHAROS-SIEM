@@ -16,6 +16,32 @@ module SIEM
     end
 
     # =============================================
+    # Authentication Endpoints
+    # =============================================
+    def self.login(request)
+      username = request.params['username']
+      password = request.params['password']
+
+      admin = SIEM::Admin.authenticate(username, password)
+      if admin
+        request.session[:admin_id] = admin.id
+        { success: true, message: 'Login successful' }
+      else
+        { success: false, message: 'Invalid credentials' }
+      end
+    end
+
+    def self.logout(request)
+      request.session.clear
+      { success: true, message: 'Logout successful' }
+    end
+
+    def self.current_user(request)
+      return nil unless request.session[:admin_id]
+      SIEM::Admin.find_by_id(request.session[:admin_id])
+    end
+
+    # =============================================
     # Logs Endpoints
     # =============================================
     def self.create_log(request)
