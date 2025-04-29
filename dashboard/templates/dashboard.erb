@@ -1,236 +1,181 @@
-<div class="row mb-4">
-    <!-- Cards de Estatísticas -->
-    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="100">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Alertas Hoje</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="alertsToday">0</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class='bx bxs-bell bx-lg text-gray-300'></i>
-                    </div>
-                </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIEM Dashboard</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard-grid">
+        <!-- Métricas de Severidade -->
+        <div class="metrics card">
+            <div class="metric-card">
+                <div class="metric-value status-critical"><%= @metrics[:critical_count] || 0 %></div>
+                <div class="metric-label">Critical</div>
             </div>
+            <div class="metric-card">
+                <div class="metric-value status-high"><%= @metrics[:high_count] || 0 %></div>
+                <div class="metric-label">High</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value status-medium"><%= @metrics[:medium_count] || 0 %></div>
+                <div class="metric-label">Medium</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value status-low"><%= @metrics[:low_count] || 0 %></div>
+                <div class="metric-label">Low</div>
+            </div>
+        </div>
+
+        <!-- Gráficos de Sistema -->
+        <div class="gauges card">
+            <div class="gauge">
+                <canvas id="cpuGauge"></canvas>
+            </div>
+            <div class="gauge">
+                <canvas id="memoryGauge"></canvas>
+            </div>
+            <div class="gauge">
+                <canvas id="diskGauge"></canvas>
+            </div>
+        </div>
+
+        <!-- Alertas Recentes -->
+        <div class="table-container card">
+            <h2>Recent Alerts</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Type</th>
+                        <th>Message</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% @alerts.each do |alert| %>
+                    <tr>
+                        <td><span class="status status-<%= alert[:severity].downcase %>"><%= alert[:severity] %></span></td>
+                        <td><%= alert[:alert_type] %></td>
+                        <td><%= alert[:message] %></td>
+                        <td><%= alert[:timestamp] %></td>
+                        <td><%= alert[:status] %></td>
+                    </tr>
+                    <% end %>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Logs Recentes -->
+        <div class="table-container card">
+            <h2>Recent Logs</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Event Type</th>
+                        <th>Source</th>
+                        <th>Message</th>
+                        <th>Time</th>
+                        <th>User ID</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% @logs.each do |log| %>
+                    <tr>
+                        <td><%= log[:event_type] %></td>
+                        <td><%= log[:source] %></td>
+                        <td><%= log[:message] %></td>
+                        <td><%= log[:timestamp] %></td>
+                        <td><%= log[:user_id] %></td>
+                        <td><%= log[:ip_address] %></td>
+                    </tr>
+                    <% end %>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Gráfico de Atividade -->
+        <div class="chart-container card">
+            <h2>Activity Timeline</h2>
+            <canvas id="activityChart"></canvas>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="200">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Logins Bem-sucedidos</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="successfulLogins">0</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class='bx bxs-user-check bx-lg text-gray-300'></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <script>
+        // Configuração dos gráficos circulares
+        function createGauge(elementId, value, label, color) {
+            new Chart(document.getElementById(elementId), {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [value, 100 - value],
+                        backgroundColor: [color, '#2a2e32']
+                    }]
+                },
+                options: {
+                    cutout: '70%',
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: `${label}: ${value}%`,
+                            color: '#ffffff'
+                        }
+                    }
+                }
+            });
+        }
 
-    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="300">
-        <div class="card border-left-warning shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Tentativas de Login Falhas</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="failedLogins">0</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class='bx bxs-user-x bx-lg text-gray-300'></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+        // Criar gráficos circulares
+        createGauge('cpuGauge', <%= @metrics[:cpu_usage] || 0 %>, 'CPU', '#28a745');
+        createGauge('memoryGauge', <%= @metrics[:memory_usage] || 0 %>, 'Memory', '#fd7e14');
+        createGauge('diskGauge', <%= @metrics[:disk_usage] || 0 %>, 'Disk', '#007bff');
 
-    <div class="col-xl-3 col-md-6 mb-4" data-aos="fade-up" data-aos-delay="400">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Transações Suspeitas</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="suspiciousTransactions">0</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class='bx bxs-error bx-lg text-gray-300'></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Gráficos -->
-<div class="row">
-    <!-- Gráfico de Alertas por Tipo -->
-    <div class="col-xl-6 col-lg-6" data-aos="fade-up" data-aos-delay="100">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">Alertas por Tipo</h6>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-link dropdown-toggle" type="button" id="alertsChartDropdown" data-bs-toggle="dropdown">
-                        <i class='bx bx-dots-vertical-rounded'></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" data-chart="bar">Barras</a></li>
-                        <li><a class="dropdown-item" href="#" data-chart="pie">Pizza</a></li>
-                        <li><a class="dropdown-item" href="#" data-chart="line">Linha</a></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="card-body">
-                <canvas id="alertsByTypeChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gráfico de Logins -->
-    <div class="col-xl-6 col-lg-6" data-aos="fade-up" data-aos-delay="200">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">Tentativas de Login</h6>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-link dropdown-toggle" type="button" id="loginsChartDropdown" data-bs-toggle="dropdown">
-                        <i class='bx bx-dots-vertical-rounded'></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" data-chart="line">Linha</a></li>
-                        <li><a class="dropdown-item" href="#" data-chart="area">Área</a></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="card-body">
-                <canvas id="loginAttemptsChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gráfico de Transações -->
-    <div class="col-xl-6 col-lg-6" data-aos="fade-up" data-aos-delay="300">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">Transações por Hora</h6>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-link dropdown-toggle" type="button" id="transactionsChartDropdown" data-bs-toggle="dropdown">
-                        <i class='bx bx-dots-vertical-rounded'></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" data-chart="line">Linha</a></li>
-                        <li><a class="dropdown-item" href="#" data-chart="bar">Barras</a></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="card-body">
-                <canvas id="transactionsChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gráfico de Risco -->
-    <div class="col-xl-6 col-lg-6" data-aos="fade-up" data-aos-delay="400">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">Nível de Risco</h6>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-link dropdown-toggle" type="button" id="riskChartDropdown" data-bs-toggle="dropdown">
-                        <i class='bx bx-dots-vertical-rounded'></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" data-chart="gauge">Gauge</a></li>
-                        <li><a class="dropdown-item" href="#" data-chart="radar">Radar</a></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="card-body">
-                <canvas id="riskLevelChart"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Tabela de Alertas Recentes -->
-<div class="row" data-aos="fade-up" data-aos-delay="500">
-    <div class="col-12">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">Alertas Recentes</h6>
-                <button class="btn btn-sm btn-primary" id="refreshAlerts">
-                    <i class='bx bx-refresh'></i> Atualizar
-                </button>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered" id="recentAlertsTable">
-                        <thead>
-                            <tr>
-                                <th>Data/Hora</th>
-                                <th>Tipo</th>
-                                <th>Severidade</th>
-                                <th>Mensagem</th>
-                                <th>Status</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Dados serão preenchidos via JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de Detalhes do Alerta -->
-<div class="modal fade" id="alertDetailsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Detalhes do Alerta</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Informações Básicas</h6>
-                        <table class="table table-sm">
-                            <tr>
-                                <th>ID:</th>
-                                <td id="alertId"></td>
-                            </tr>
-                            <tr>
-                                <th>Data/Hora:</th>
-                                <td id="alertTimestamp"></td>
-                            </tr>
-                            <tr>
-                                <th>Severidade:</th>
-                                <td id="alertSeverity"></td>
-                            </tr>
-                            <tr>
-                                <th>Status:</th>
-                                <td id="alertStatus"></td>
-                            </tr>
-                        </table>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Detalhes</h6>
-                        <div id="alertDetails"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                <button type="button" class="btn btn-primary" id="updateAlertStatus">Atualizar Status</button>
-            </div>
-        </div>
-    </div>
-</div>
+        // Gráfico de linha para atividade
+        new Chart(document.getElementById('activityChart'), {
+            type: 'line',
+            data: {
+                labels: <%= @activity_timeline[:labels].to_json %>,
+                datasets: [{
+                    label: 'Events',
+                    data: <%= @activity_timeline[:data].to_json %>,
+                    borderColor: '#007bff',
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#32383e'
+                        },
+                        ticks: {
+                            color: '#8b949e'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: '#32383e'
+                        },
+                        ticks: {
+                            color: '#8b949e'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

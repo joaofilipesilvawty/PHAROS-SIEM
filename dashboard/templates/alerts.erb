@@ -1,0 +1,190 @@
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="card-title mb-0">Filtros</h5>
+                        <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                            <i class='bx bx-filter-alt'></i> Filtrar
+                        </button>
+                    </div>
+                    <div class="collapse" id="filterCollapse">
+                        <form id="alertFilters" class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Severidade</label>
+                                <select class="form-select" name="severity">
+                                    <option value="">Todas</option>
+                                    <option value="Critical">Crítico</option>
+                                    <option value="High">Alto</option>
+                                    <option value="Medium">Médio</option>
+                                    <option value="Low">Baixo</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" name="status">
+                                    <option value="">Todos</option>
+                                    <option value="New">Novo</option>
+                                    <option value="In Progress">Em Progresso</option>
+                                    <option value="Resolved">Resolvido</option>
+                                    <option value="Closed">Fechado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Período</label>
+                                <input type="text" class="form-control" id="dateRange" name="dateRange">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">Aplicar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="card-title mb-0">Alertas</h5>
+                        <div>
+                            <button class="btn btn-outline-secondary me-2" id="refreshAlerts">
+                                <i class='bx bx-refresh'></i> Atualizar
+                            </button>
+                            <div class="btn-group">
+                                <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class='bx bx-export'></i> Exportar
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" data-export="csv">CSV</a></li>
+                                    <li><a class="dropdown-item" href="#" data-export="pdf">PDF</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Timestamp</th>
+                                    <th>Tipo</th>
+                                    <th>Severidade</th>
+                                    <th>Mensagem</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% @alerts.each do |alert| %>
+                                    <tr class="alert-row" data-alert-id="<%= alert[:id] %>">
+                                        <td><%= alert[:id] %></td>
+                                        <td><%= alert[:timestamp].strftime("%d/%m/%Y %H:%M:%S") %></td>
+                                        <td><%= alert[:alert_type] %></td>
+                                        <td>
+                                            <span class="badge bg-<%= {
+                                                'Critical' => 'danger',
+                                                'High' => 'warning',
+                                                'Medium' => 'info',
+                                                'Low' => 'success'
+                                            }[alert[:severity]] %>">
+                                                <%= alert[:severity] %>
+                                            </span>
+                                        </td>
+                                        <td><%= alert[:message] %></td>
+                                        <td>
+                                            <span class="badge bg-<%= {
+                                                'New' => 'primary',
+                                                'In Progress' => 'warning',
+                                                'Resolved' => 'success',
+                                                'Closed' => 'secondary'
+                                            }[alert[:status]] %>">
+                                                <%= alert[:status] %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <button class="btn btn-sm btn-outline-primary view-alert" data-bs-toggle="modal" data-bs-target="#alertModal">
+                                                    <i class='bx bx-show'></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-warning update-status">
+                                                    <i class='bx bx-edit'></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% end %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Details Modal -->
+<div class="modal fade" id="alertModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes do Alerta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert-details"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary update-status">Atualizar Status</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize date range picker
+    $('#dateRange').daterangepicker({
+        locale: {
+            format: 'DD/MM/YYYY'
+        }
+    });
+
+    // Handle alert filters
+    $('#alertFilters').on('submit', function(e) {
+        e.preventDefault();
+        // Implement filter logic here
+    });
+
+    // Handle alert refresh
+    $('#refreshAlerts').on('click', function() {
+        location.reload();
+    });
+
+    // Handle alert details view
+    $('.view-alert').on('click', function() {
+        const alertId = $(this).closest('tr').data('alert-id');
+        // Implement alert details fetch logic here
+    });
+
+    // Handle status update
+    $('.update-status').on('click', function() {
+        const alertId = $(this).closest('tr').data('alert-id');
+        // Implement status update logic here
+    });
+
+    // Handle export
+    $('[data-export]').on('click', function(e) {
+        e.preventDefault();
+        const format = $(this).data('export');
+        // Implement export logic here
+    });
+});
+</script>

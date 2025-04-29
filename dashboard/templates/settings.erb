@@ -1,0 +1,197 @@
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Configurações de Alertas</h5>
+                    <form id="alertSettingsForm">
+                        <div class="mb-3">
+                            <label class="form-label">Tentativas de Login Falhas</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="failed_login_attempts"
+                                       value="<%= @settings[:alert_thresholds][:failed_login_attempts] %>" min="1" max="10">
+                                <span class="input-group-text">tentativas</span>
+                            </div>
+                            <small class="text-muted">Número de tentativas antes de gerar alerta</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Valor de Transação Suspeita</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" class="form-control" name="suspicious_transaction_amount"
+                                       value="<%= @settings[:alert_thresholds][:suspicious_transaction_amount] %>" min="1000">
+                            </div>
+                            <small class="text-muted">Valor mínimo para considerar uma transação suspeita</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Período para Múltiplas Transações</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="multiple_transactions_period"
+                                       value="<%= @settings[:alert_thresholds][:multiple_transactions_period] %>" min="60" step="60">
+                                <span class="input-group-text">segundos</span>
+                            </div>
+                            <small class="text-muted">Período para monitorar múltiplas transações</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Limite de Transações no Período</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="multiple_transactions_count"
+                                       value="<%= @settings[:alert_thresholds][:multiple_transactions_count] %>" min="2" max="10">
+                                <span class="input-group-text">transações</span>
+                            </div>
+                            <small class="text-muted">Número de transações que gera alerta no período</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class='bx bx-save'></i> Salvar Configurações de Alertas
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Configurações de Sistema</h5>
+                    <form id="systemSettingsForm">
+                        <div class="mb-3">
+                            <label class="form-label">Nível de Log</label>
+                            <select class="form-select" name="log_level">
+                                <option value="debug" <%= @settings[:log_level] == 'debug' ? 'selected' : '' %>>Debug</option>
+                                <option value="info" <%= @settings[:log_level] == 'info' ? 'selected' : '' %>>Info</option>
+                                <option value="warning" <%= @settings[:log_level] == 'warning' ? 'selected' : '' %>>Warning</option>
+                                <option value="error" <%= @settings[:log_level] == 'error' ? 'selected' : '' %>>Error</option>
+                            </select>
+                            <small class="text-muted">Nível de detalhamento dos logs do sistema</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Retenção de Logs</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="log_retention" value="30" min="7" max="365">
+                                <span class="input-group-text">dias</span>
+                            </div>
+                            <small class="text-muted">Período de retenção dos logs no sistema</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Intervalo de Backup</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="backup_interval" value="24" min="6" max="72">
+                                <span class="input-group-text">horas</span>
+                            </div>
+                            <small class="text-muted">Intervalo entre backups automáticos</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Retenção de Backup</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="backup_retention" value="7" min="1" max="30">
+                                <span class="input-group-text">dias</span>
+                            </div>
+                            <small class="text-muted">Período de retenção dos backups</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class='bx bx-save'></i> Salvar Configurações do Sistema
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Backup Manual</h5>
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <p class="mb-0">
+                                Último backup: <strong>01/04/2024 00:00</strong><br>
+                                Próximo backup automático: <strong>01/04/2024 12:00</strong>
+                            </p>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <button class="btn btn-primary" id="manualBackup">
+                                <i class='bx bx-download'></i> Iniciar Backup Manual
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle alert settings form
+    $('#alertSettingsForm').on('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="bx bx-loader bx-spin"></i> Salvando...';
+        submitBtn.disabled = true;
+
+        // Simulate settings update (replace with actual API call)
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+
+            // Show success message
+            const toast = new bootstrap.Toast(document.getElementById('toast'));
+            document.querySelector('.toast-body').textContent = 'Configurações de alertas atualizadas com sucesso!';
+            toast.show();
+        }, 1000);
+    });
+
+    // Handle system settings form
+    $('#systemSettingsForm').on('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="bx bx-loader bx-spin"></i> Salvando...';
+        submitBtn.disabled = true;
+
+        // Simulate settings update (replace with actual API call)
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+
+            // Show success message
+            const toast = new bootstrap.Toast(document.getElementById('toast'));
+            document.querySelector('.toast-body').textContent = 'Configurações do sistema atualizadas com sucesso!';
+            toast.show();
+        }, 1000);
+    });
+
+    // Handle manual backup
+    $('#manualBackup').on('click', function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bx bx-loader bx-spin"></i> Iniciando Backup...';
+        btn.disabled = true;
+
+        // Simulate backup process (replace with actual API call)
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+
+            // Show success message
+            const toast = new bootstrap.Toast(document.getElementById('toast'));
+            document.querySelector('.toast-body').textContent = 'Backup manual iniciado com sucesso!';
+            toast.show();
+        }, 2000);
+    });
+});
+</script>

@@ -1,0 +1,206 @@
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="card-title mb-0">Período de Análise</h5>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-secondary active" data-time-range="1h">1h</button>
+                            <button class="btn btn-outline-secondary" data-time-range="6h">6h</button>
+                            <button class="btn btn-outline-secondary" data-time-range="24h">24h</button>
+                            <button class="btn btn-outline-secondary" data-time-range="7d">7d</button>
+                            <button class="btn btn-outline-secondary" data-time-range="30d">30d</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Resources -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title mb-4">CPU Usage</h6>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-grow-1">
+                            <canvas id="cpuChart" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="mb-1"><%= @metrics[:cpu_usage].last[:value].round(1) %>%</h3>
+                        <p class="text-muted mb-0">Current Usage</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title mb-4">Memory Usage</h6>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-grow-1">
+                            <canvas id="memoryChart" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="mb-1"><%= @metrics[:memory_usage].last[:value].round(1) %>%</h3>
+                        <p class="text-muted mb-0">Current Usage</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title mb-4">Disk Usage</h6>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-grow-1">
+                            <canvas id="diskChart" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="mb-1"><%= @metrics[:disk_usage].last[:value].round(1) %>%</h3>
+                        <p class="text-muted mb-0">Current Usage</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title mb-4">Network Traffic</h6>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-grow-1">
+                            <canvas id="networkChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title mb-4">API Latency</h6>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-grow-1">
+                            <canvas id="latencyChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Rate -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title mb-4">Error Rate</h6>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-grow-1">
+                            <canvas id="errorChart" height="100"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Helper function to format dates
+    function formatDate(date) {
+        return moment(date).format('HH:mm');
+    }
+
+    // Helper function to create chart configuration
+    function createChartConfig(data, label, color) {
+        return {
+            type: 'line',
+            data: {
+                labels: data.map(d => formatDate(d.timestamp)),
+                datasets: [{
+                    label: label,
+                    data: data.map(d => d.value),
+                    borderColor: color,
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    // Initialize charts
+    const cpuChart = new Chart(
+        document.getElementById('cpuChart'),
+        createChartConfig(<%= @metrics[:cpu_usage].to_json %>, 'CPU Usage', '#0d6efd')
+    );
+
+    const memoryChart = new Chart(
+        document.getElementById('memoryChart'),
+        createChartConfig(<%= @metrics[:memory_usage].to_json %>, 'Memory Usage', '#198754')
+    );
+
+    const diskChart = new Chart(
+        document.getElementById('diskChart'),
+        createChartConfig(<%= @metrics[:disk_usage].to_json %>, 'Disk Usage', '#dc3545')
+    );
+
+    const networkChart = new Chart(
+        document.getElementById('networkChart'),
+        createChartConfig(<%= @metrics[:network_traffic].to_json %>, 'Network Traffic', '#6610f2')
+    );
+
+    const latencyChart = new Chart(
+        document.getElementById('latencyChart'),
+        createChartConfig(<%= @metrics[:api_latency].to_json %>, 'API Latency', '#fd7e14')
+    );
+
+    const errorChart = new Chart(
+        document.getElementById('errorChart'),
+        createChartConfig(<%= @metrics[:error_rate].to_json %>, 'Error Rate', '#dc3545')
+    );
+
+    // Handle time range buttons
+    document.querySelectorAll('[data-time-range]').forEach(button => {
+        button.addEventListener('click', function() {
+            document.querySelectorAll('[data-time-range]').forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            // Implement time range update logic here
+        });
+    });
+
+    // Auto-refresh every minute
+    setInterval(() => {
+        location.reload();
+    }, 60000);
+});
+</script>

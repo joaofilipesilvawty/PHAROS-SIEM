@@ -12,6 +12,7 @@ gem 'sinatra-contrib'
 gem 'syslog_protocol'
 gem 'logstash-logger'
 gem 'prometheus-client'
+gem 'bcrypt-ruby', '~> 3.1.5', platform: :jruby
 
 # Utilities
 gem 'dotenv'

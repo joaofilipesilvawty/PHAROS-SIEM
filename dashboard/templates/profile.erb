@@ -1,0 +1,208 @@
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <div class="avatar-circle">
+                            <span class="avatar-text"><%= @admin[:username][0].upcase %></span>
+                        </div>
+                    </div>
+                    <h5 class="card-title mb-1"><%= @admin[:username] %></h5>
+                    <p class="text-muted mb-3">Administrador</p>
+                    <div class="d-grid">
+                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#changeAvatarModal">
+                            <i class='bx bx-camera'></i> Alterar Avatar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6 class="card-title mb-3">Informações da Conta</h6>
+                    <div class="mb-3">
+                        <small class="text-muted d-block">ID da Conta</small>
+                        <span><%= @admin[:id] %></span>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Data de Criação</small>
+                        <span><%= @admin[:created_at].strftime("%d/%m/%Y") %></span>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block">Última Atualização</small>
+                        <span><%= @admin[:updated_at].strftime("%d/%m/%Y") %></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Editar Perfil</h5>
+                    <form id="profileForm">
+                        <div class="mb-3">
+                            <label class="form-label">Nome de Usuário</label>
+                            <input type="text" class="form-control" name="username" value="<%= @admin[:username] %>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" value="admin@example.com" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class='bx bx-save'></i> Salvar Alterações
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Alterar Senha</h5>
+                    <form id="passwordForm">
+                        <div class="mb-3">
+                            <label class="form-label">Senha Atual</label>
+                            <input type="password" class="form-control" name="current_password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Nova Senha</label>
+                            <input type="password" class="form-control" name="new_password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Confirmar Nova Senha</label>
+                            <input type="password" class="form-control" name="confirm_password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class='bx bx-lock'></i> Alterar Senha
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Avatar Modal -->
+<div class="modal fade" id="changeAvatarModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Alterar Avatar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="avatarForm">
+                    <div class="mb-3">
+                        <label class="form-label">Selecione uma Imagem</label>
+                        <input type="file" class="form-control" name="avatar" accept="image/*" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('avatarForm').submit()">
+                    Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-circle {
+    width: 100px;
+    height: 100px;
+    background-color: #0d6efd;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.avatar-text {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 500;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle profile form
+    $('#profileForm').on('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="bx bx-loader bx-spin"></i> Salvando...';
+        submitBtn.disabled = true;
+
+        // Simulate profile update (replace with actual API call)
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+
+            // Show success message
+            const toast = new bootstrap.Toast(document.getElementById('toast'));
+            document.querySelector('.toast-body').textContent = 'Perfil atualizado com sucesso!';
+            toast.show();
+        }, 1000);
+    });
+
+    // Handle password form
+    $('#passwordForm').on('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        // Validate passwords match
+        if (formData.get('new_password') !== formData.get('confirm_password')) {
+            alert('As senhas não coincidem!');
+            return;
+        }
+
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="bx bx-loader bx-spin"></i> Alterando...';
+        submitBtn.disabled = true;
+
+        // Simulate password update (replace with actual API call)
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+
+            // Show success message
+            const toast = new bootstrap.Toast(document.getElementById('toast'));
+            document.querySelector('.toast-body').textContent = 'Senha alterada com sucesso!';
+            toast.show();
+
+            // Clear form
+            this.reset();
+        }, 1000);
+    });
+
+    // Handle avatar form
+    $('#avatarForm').on('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        // Simulate avatar update (replace with actual API call)
+        setTimeout(() => {
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('changeAvatarModal')).hide();
+
+            // Show success message
+            const toast = new bootstrap.Toast(document.getElementById('toast'));
+            document.querySelector('.toast-body').textContent = 'Avatar atualizado com sucesso!';
+            toast.show();
+
+            // Clear form
+            this.reset();
+        }, 1000);
+    });
+});
+</script>

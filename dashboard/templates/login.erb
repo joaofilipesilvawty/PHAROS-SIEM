@@ -4,19 +4,126 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SIEM - Login</title>
-    <link rel="stylesheet" href="/css/login_styles.css">
+    <style>
+        :root {
+            --bg-dark: #1a1d21;
+            --bg-card: #22262a;
+            --text-primary: #ffffff;
+            --text-secondary: #8b949e;
+            --accent-blue: #007bff;
+            --accent-red: #dc3545;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .login-container {
+            background-color: var(--bg-card);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            font-size: 1.8em;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--bg-dark);
+            border: 1px solid #32383e;
+            border-radius: 4px;
+            box-sizing: border-box;
+            color: var(--text-primary);
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .error {
+            color: var(--accent-red);
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.9em;
+        }
+
+        /* Logo ou ícone */
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 2.5em;
+            color: var(--accent-blue);
+        }
+
+        .logo span {
+            display: block;
+            font-size: 0.4em;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+    </style>
 </head>
 <body>
     <div class="login-container">
-        <h1>SIEM Dashboard</h1>
+        <div class="logo">
+            🛡️
+            <span>Security Information and Event Management</span>
+        </div>
+        <h1>Admin Login</h1>
         <form action="/auth/login" method="post">
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" required>
+                <input type="text" id="username" name="username" required autocomplete="off" placeholder="Enter your username">
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required>
+                <input type="password" id="password" name="password" required placeholder="Enter your password">
             </div>
             <button type="submit">Login</button>
         </form>
