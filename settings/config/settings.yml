@@ -1,0 +1,79 @@
+# SIEM Configuration File
+
+# Database Settings
+database:
+  adapter: jdbc
+  driver: oracle.jdbc.driver.OracleDriver
+  host: <%= ENV['ORACLE_HOST'] %>
+  port: <%= ENV['ORACLE_PORT'] %>
+  service_name: <%= ENV['ORACLE_SERVICE_NAME'] %>
+  username: <%= ENV['ORACLE_USERNAME'] %>
+  password: <%= ENV['ORACLE_PASSWORD'] %>
+
+# Server Settings
+server:
+  host: 127.0.0.1
+  port: <%= ENV['PORT'] || 4567 %>
+  environment: <%= ENV['RACK_ENV'] || 'development' %>
+  session_secret: <%= ENV['SESSION_SECRET'] %>
+
+# Security Settings
+security:
+  password_min_length: 8
+  session_timeout: 86400 # 24 hours in seconds
+  failed_login_attempts: 5
+  lockout_duration: 1800 # 30 minutes in seconds
+
+# Alert Thresholds
+alerts:
+  failed_login_attempts: 5
+  suspicious_transaction_amount: 10000
+  multiple_transactions_period: 300 # seconds
+  multiple_transactions_count: 5
+  unusual_ip_access_count: 3
+  critical_severity_threshold: 10
+  high_severity_threshold: 20
+  medium_severity_threshold: 50
+
+# Logging Settings
+logging:
+  level: <%= ENV['LOG_LEVEL'] || 'info' %>
+  file: log/siem.log
+  max_size: 10485760 # 10MB
+  max_files: 5
+
+# Metrics Settings
+metrics:
+  collection_interval: 60 # seconds
+  retention_period: 604800 # 7 days in seconds
+  enabled_metrics:
+    - cpu_usage
+    - memory_usage
+    - disk_usage
+    - network_traffic
+    - api_latency
+    - error_rate
+    - failed_login_attempts
+    - successful_logins
+    - total_transactions
+    - average_transaction_amount
+
+# Report Settings
+reports:
+  default_format: pdf
+  retention_period: 2592000 # 30 days in seconds
+  scheduled_reports:
+    daily:
+      - name: "Daily Security Summary"
+        time: "00:00"
+        recipients: ["admin@example.com"]
+    weekly:
+      - name: "Weekly Security Analysis"
+        day: "monday"
+        time: "00:00"
+        recipients: ["security@example.com"]
+    monthly:
+      - name: "Monthly Compliance Report"
+        day: 1
+        time: "00:00"
+        recipients: ["compliance@example.com"]

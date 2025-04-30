@@ -4,6 +4,8 @@ require 'sequel'
 require 'java'
 require_relative 'lib/ojdbc8-19.26.0.0.jar'
 require 'dotenv'
+require 'bcrypt'
+require 'json'
 Dotenv.load
 
 # =============================================

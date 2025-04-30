@@ -1,0 +1,66 @@
+#!/usr/bin/env ruby
+
+require 'bundler/setup'
+require 'optparse'
+require 'fileutils'
+
+# Parse command line options
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: siem [options]"
+
+  opts.on("-e", "--environment ENV", "Set the environment (development/production)") do |env|
+    options[:environment] = env
+  end
+
+  opts.on("-p", "--port PORT", "Set the port number") do |port|
+    options[:port] = port
+  end
+
+  opts.on("-h", "--host HOST", "Set the host address") do |host|
+    options[:host] = host
+  end
+
+  opts.on("-c", "--config FILE", "Set the configuration file") do |file|
+    options[:config] = file
+  end
+
+  opts.on("-v", "--version", "Show version") do
+    puts "SIEM System v1.0.0"
+    exit
+  end
+
+  opts.on("--help", "Show this help message") do
+    puts opts
+    exit
+  end
+end.parse!
+
+# Set environment variables
+ENV['RACK_ENV'] = options[:environment] || 'development'
+ENV['PORT'] = options[:port] if options[:port]
+ENV['HOST'] = options[:host] if options[:host]
+ENV['CONFIG_FILE'] = options[:config] if options[:config]
+
+# Load the application
+require_relative '../settings/config/initializers/setup'
+require_relative '../server'
+
+# Initialize the system
+SIEM::Setup.initialize!
+
+# Start the server
+puts "Starting SIEM System in #{ENV['RACK_ENV']} environment..."
+puts "Listening on #{ENV['HOST'] || '127.0.0.1'}:#{ENV['PORT'] || '4567'}"
+puts "Press Ctrl+C to stop"
+
+begin
+  SIEM::Server.run!
+rescue Interrupt
+  puts "\nShutting down SIEM System..."
+  exit 0
+rescue => e
+  puts "Error: #{e.message}"
+  puts e.backtrace
+  exit 1
+end

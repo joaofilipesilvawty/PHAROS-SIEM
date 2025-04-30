@@ -16,13 +16,13 @@ Este é um Sistema de Informação e Eventos de Segurança (SIEM) desenvolvido p
 ```
 .
 ├── server.rb              # Servidor principal
-├── settings/             # Configurações e serviços
-│   ├── controllers/      # Controladores da aplicação
-│   ├── models/          # Modelos de dados
-│   └── services/        # Serviços de negócio
-├── config/              # Configurações
-│   ├── environments/    # Configurações por ambiente
-│   └── initializers/    # Inicializadores
+├── settings/          # Configurações e modelos
+│   ├── config/       # Configurações do sistema
+│   ├── db/          # Esquema e migrações do banco de dados
+│   ├── endpoints/   # Endpoints da API
+│   ├── middleware/  # Middleware da aplicação
+│   ├── models/      # Modelos do banco de dados
+│   └── services/    # Serviços da aplicação
 ├── spec/                # Testes
 ├── log/                 # Logs da aplicação
 └── tmp/                 # Arquivos temporários
@@ -39,10 +39,13 @@ Este é um Sistema de Informação e Eventos de Segurança (SIEM) desenvolvido p
 
 1. Clone o repositório
 2. Instale as dependências:
+
    ```bash
    bundle install
    ```
+
 3. Configure as variáveis de ambiente:
+
    ```bash
    cp .env.example .env
    # Edite o arquivo .env com suas configurações do Oracle
@@ -69,6 +72,7 @@ bundle exec ruby server.rb
 ## Desenvolvimento
 
 Para executar os testes:
+
 ```bash
 bundle exec rspec
 ```
