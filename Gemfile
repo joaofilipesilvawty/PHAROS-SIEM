@@ -19,6 +19,7 @@ gem 'dotenv'
 gem 'json'
 gem 'puma'
 gem 'rack-cors'
+gem 'elasticsearch'
 
 group :development do
   gem 'pry'

@@ -1,8 +1,5 @@
 module SIEM
-  class Alert < Sequel::Model(:alerts)
-    plugin :json_serializer
-    plugin :timestamps, update_on_create: true
-
+  class Alert
     # Tipos de alertas
     ALERT_TYPES = %w[
       multiple_failed_logins
@@ -19,28 +16,75 @@ module SIEM
     # Status possíveis
     STATUSES = %w[new in_progress resolved ignored].freeze
 
-    def validate
-      super
-      validates_includes ALERT_TYPES, :alert_type, message: "must be one of: #{ALERT_TYPES.join(', ')}"
-      validates_includes SEVERITIES, :severity, message: "must be one of: #{SEVERITIES.join(', ')}"
-      validates_includes STATUSES, :status, message: "must be one of: #{STATUSES.join(', ')}"
-      validates_presence [:alert_type, :severity, :message, :timestamp, :status]
+    def self.validate_alert(alert_data)
+      return false unless ALERT_TYPES.include?(alert_data[:alert_type])
+      return false unless SEVERITIES.include?(alert_data[:severity])
+      return false unless STATUSES.include?(alert_data[:status])
+      return false if alert_data[:alert_type].nil? || alert_data[:severity].nil? ||
+                     alert_data[:message].nil? || alert_data[:timestamp].nil? ||
+                     alert_data[:status].nil?
+      true
     end
 
     def self.create_from_security_log(log, alert_type, severity, message, details = {})
-      create(
+      alert_data = {
         alert_type: alert_type,
         severity: severity,
         message: message,
         timestamp: Time.now,
         status: 'new',
         details: {
-          log_id: log.id,
-          user_id: log.user_id,
-          ip_address: log.ip_address,
+          log_id: log['id'],
+          user_id: log['user_id'],
+          ip_address: log['ip_address'],
           **details
         }.to_json
+      }
+
+      return nil unless validate_alert(alert_data)
+
+      response = ES.index(
+        index: 'alerts',
+        body: alert_data
       )
+
+      response['_id']
+    end
+
+    def self.where(conditions = {})
+      query = {
+        bool: {
+          must: conditions.map do |field, value|
+            { term: { field => value } }
+          end
+        }
+      }
+
+      response = ES.search(
+        index: 'alerts',
+        body: {
+          query: query
+        }
+      )
+
+      response['hits']['hits'].map do |hit|
+        hit['_source'].merge(id: hit['_id'])
+      end
+    end
+
+    def self.order(field, direction = :desc)
+      response = ES.search(
+        index: 'alerts',
+        body: {
+          sort: [
+            { field => { order: direction.to_s } }
+          ]
+        }
+      )
+
+      response['hits']['hits'].map do |hit|
+        hit['_source'].merge(id: hit['_id'])
+      end
     end
   end
 end

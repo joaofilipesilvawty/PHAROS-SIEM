@@ -1,8 +1,6 @@
 require 'sinatra/base'
 require 'sinatra/json'
-require 'sequel'
-require 'java'
-require_relative 'lib/ojdbc8-19.26.0.0.jar'
+require 'elasticsearch'
 require 'dotenv'
 require 'bcrypt'
 require 'json'
@@ -13,16 +11,15 @@ Dotenv.load
 # =============================================
 module SIEM
   class Configuration
-    attr_accessor :oracle_host, :oracle_port, :oracle_service_name,
-                  :oracle_username, :oracle_password,
+    attr_accessor :elasticsearch_host, :elasticsearch_port,
+                  :elasticsearch_username, :elasticsearch_password,
                   :log_level, :alert_thresholds
 
     def initialize
-      @oracle_host = ENV['ORACLE_HOST']
-      @oracle_port = ENV['ORACLE_PORT'] || '1521'
-      @oracle_service_name = ENV['ORACLE_SERVICE_NAME'] || 'orclpdb1'
-      @oracle_username = ENV['ORACLE_USERNAME']
-      @oracle_password = ENV['ORACLE_PASSWORD']
+      @elasticsearch_host = ENV['ELASTICSEARCH_HOST'] || 'localhost'
+      @elasticsearch_port = ENV['ELASTICSEARCH_PORT'] || '9200'
+      @elasticsearch_username = 'elastic'
+      @elasticsearch_password = 'joaofilipegsilva'
       @log_level = ENV['LOG_LEVEL'] || 'info'
 
       @alert_thresholds = {
@@ -33,8 +30,8 @@ module SIEM
       }
     end
 
-    def oracle_connection_string
-      "jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=#{@oracle_host})(PORT=#{@oracle_port}))(CONNECT_DATA=(SERVICE_NAME=#{@oracle_service_name})))"
+    def elasticsearch_url
+      "http://#{@elasticsearch_host}:#{@elasticsearch_port}"
     end
   end
 
@@ -48,73 +45,105 @@ module SIEM
 
   module Database
     def self.connect
-      @connection ||= Sequel.connect(
-        adapter: 'jdbc',
-        driver: 'oracle.jdbc.driver.OracleDriver',
-        url: SIEM.config.oracle_connection_string,
-        user: SIEM.config.oracle_username,
-        password: SIEM.config.oracle_password
+      @connection ||= Elasticsearch::Client.new(
+        hosts: [{
+          host: SIEM.config.elasticsearch_host,
+          port: SIEM.config.elasticsearch_port,
+          user: SIEM.config.elasticsearch_username,
+          password: SIEM.config.elasticsearch_password,
+          scheme: 'http'
+        }],
+        log: SIEM.config.log_level == 'debug',
+        retry_on_failure: true,
+        transport_options: {
+          request: {
+            timeout: 30
+          }
+        }
       )
     end
 
     def self.connection
       connect
     end
+
+    def self.create_indices
+      indices = {
+        admins: {
+          mappings: {
+            properties: {
+              username: { type: 'keyword' },
+              password_hash: { type: 'keyword' },
+              created_at: { type: 'date' },
+              updated_at: { type: 'date' }
+            }
+          }
+        },
+        sessions: {
+          mappings: {
+            properties: {
+              id: { type: 'keyword' },
+              admin_id: { type: 'keyword' },
+              created_at: { type: 'date' },
+              expires_at: { type: 'date' }
+            }
+          }
+        },
+        security_logs: {
+          mappings: {
+            properties: {
+              event_type: { type: 'keyword' },
+              source: { type: 'keyword' },
+              severity: { type: 'keyword' },
+              message: { type: 'text' },
+              timestamp: { type: 'date' },
+              user_id: { type: 'keyword' },
+              ip_address: { type: 'ip' },
+              details: { type: 'text' }
+            }
+          }
+        },
+        alerts: {
+          mappings: {
+            properties: {
+              alert_type: { type: 'keyword' },
+              severity: { type: 'keyword' },
+              message: { type: 'text' },
+              timestamp: { type: 'date' },
+              status: { type: 'keyword' },
+              details: { type: 'text' }
+            }
+          }
+        },
+        metrics: {
+          mappings: {
+            properties: {
+              metric_type: { type: 'keyword' },
+              value: { type: 'float' },
+              timestamp: { type: 'date' },
+              source: { type: 'keyword' }
+            }
+          }
+        }
+      }
+
+      indices.each do |index_name, settings|
+        unless connection.indices.exists?(index: index_name)
+          connection.indices.create(
+            index: index_name,
+            body: settings
+          )
+        end
+      end
+    end
   end
 end
 
 # Initialize database connection
-DB = SIEM::Database.connection
+ES = SIEM::Database.connection
 
-# Create schema if it doesn't exist
-DB.execute("CREATE USER #{ENV['ORACLE_USERNAME']} IDENTIFIED BY #{ENV['ORACLE_PASSWORD']}") rescue nil
-DB.execute("GRANT CONNECT, RESOURCE TO #{ENV['ORACLE_USERNAME']}") rescue nil
-
-# Create tables if they don't exist
-DB.create_table? :admins do
-  primary_key :id
-  String :username, size: 50, null: false, unique: true
-  String :password_hash, size: 100, null: false
-  DateTime :created_at
-  DateTime :updated_at
-end
-
-DB.create_table? :sessions do
-  String :id, primary_key: true
-  foreign_key :admin_id, :admins
-  DateTime :created_at, null: false
-  DateTime :expires_at, null: false
-end
-
-DB.create_table? :security_logs do
-  primary_key :id
-  String :event_type, size: 50
-  String :source, size: 100
-  String :severity, size: 20
-  String :message, text: true
-  DateTime :timestamp
-  String :user_id, size: 50
-  String :ip_address, size: 45
-  String :details, text: true
-end
-
-DB.create_table? :alerts do
-  primary_key :id
-  String :alert_type, size: 50
-  String :severity, size: 20
-  String :message, text: true
-  DateTime :timestamp
-  String :status, size: 20
-  String :details, text: true
-end
-
-DB.create_table? :metrics do
-  primary_key :id
-  String :metric_type, size: 50
-  Float :value
-  DateTime :timestamp
-  String :source, size: 100
-end
+# Create indices if they don't exist
+SIEM::Database.create_indices
 
 # Now load the models and other dependencies
 require_relative 'settings/models/security_log.rb'
@@ -136,7 +165,7 @@ module SIEM
     SIEM::Middleware.configure(self)
 
     configure do
-      set :bind, '127.0.0.1'
+      set :bind, ENV['HOST'] || '127.0.0.1'
       set :port, ENV['PORT'] || 4567
       set :logging, true
       set :dump_errors, true
@@ -176,7 +205,7 @@ module SIEM
         redirect '/login'
       end
 
-      @admin = DB[:admins][id: session[:admin_id]]
+      @admin = ES[:admins][id: session[:admin_id]]
       unless @admin
         session.clear
         redirect '/login'
@@ -258,7 +287,7 @@ module SIEM
 
     get '/dashboard/profile' do
       authenticate_admin!
-      @admin = DB[:admins][id: session[:admin_id]]
+      @admin = ES[:admins][id: session[:admin_id]]
       erb :profile, layout: :layout
     end
 
