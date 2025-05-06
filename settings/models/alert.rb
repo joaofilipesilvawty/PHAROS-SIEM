@@ -1,5 +1,5 @@
 module SIEM
-  class Alert
+  class Alert < Sequel::Model(OS[:alerts])
     # Tipos de alertas
     ALERT_TYPES = %w[
       multiple_failed_logins
@@ -27,28 +27,17 @@ module SIEM
     end
 
     def self.create_from_security_log(log, alert_type, severity, message, details = {})
-      alert_data = {
+      alert = create(
         alert_type: alert_type,
         severity: severity,
         message: message,
         timestamp: Time.now,
-        status: 'new',
-        details: {
-          log_id: log['id'],
-          user_id: log['user_id'],
-          ip_address: log['ip_address'],
-          **details
-        }.to_json
-      }
-
-      return nil unless validate_alert(alert_data)
-
-      response = ES.index(
-        index: 'alerts',
-        body: alert_data
+        status: 'open',
+        details: details.to_json
       )
-
-      response['_id']
+      # Trigger automated response
+      ResponseAutomation.execute_response(alert)
+      alert
     end
 
     def self.where(conditions = {})

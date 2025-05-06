@@ -4,6 +4,8 @@ require 'opensearch'
 require 'dotenv'
 require 'bcrypt'
 require 'json'
+require 'redis'
+require 'digest'
 Dotenv.load
 
 # =============================================
@@ -159,8 +161,28 @@ require_relative 'settings/models/alert.rb'
 require_relative 'settings/models/metric.rb'
 require_relative 'settings/models/admin.rb'
 require_relative 'settings/services/security_analyzer.rb'
+require_relative 'settings/services/response_automation.rb'
+require_relative 'settings/services/ai_ml_analyzer.rb'
+require_relative 'settings/services/threat_intelligence.rb'
+require_relative 'settings/services/api_security.rb'
+require_relative 'settings/services/tenant_manager.rb'
+require_relative 'settings/services/mdr_service.rb'
 require_relative 'settings/endpoints/endpoints.rb'
 require_relative 'settings/middleware/middleware.rb'
+
+# Initialize Redis connection
+$redis = Redis.new(
+  host: ENV['REDIS_HOST'] || 'localhost',
+  port: ENV['REDIS_PORT'] || 6379,
+  password: ENV['REDIS_PASSWORD']
+)
+
+# Initialize services
+SIEM::AIMLAnalyzer
+SIEM::ThreatIntelligence
+SIEM::APISecurity
+SIEM::TenantManager
+SIEM::MDRService
 
 # =============================================
 # Server Application
@@ -183,6 +205,10 @@ module SIEM
       enable :sessions
       set :session_secret, ENV['SESSION_SECRET'] || 'a_very_long_and_secure_secret_key_that_is_at_least_64_characters_long_for_development_only_9876543210'
       enable :static
+      setup_data_sources
+      setup_real_time_monitoring
+      setup_compliance_and_retention
+      setup_api_security
     end
 
     # =============================================
@@ -329,6 +355,14 @@ module SIEM
       json Endpoints.get_alerts
     end
 
+    post '/alerts' do
+      json Endpoints.create_alert(request)
+    end
+
+    before '/alerts' do
+      authenticate_admin! unless request.request_method == 'POST'
+    end
+
     put '/alerts/:id' do
       json Endpoints.update_alert(params[:id], request)
     end
@@ -444,6 +478,105 @@ module SIEM
     configure do
       connect_to_opensearch
       create_indices
+    end
+
+    # Multi-Source Data Collection Setup
+    def setup_data_sources
+      @data_sources = {
+        network: { enabled: ENV['NETWORK_DATA_SOURCE_ENABLED'] == 'true', host: ENV['NETWORK_DATA_SOURCE_HOST'] },
+        endpoint: { enabled: ENV['ENDPOINT_DATA_SOURCE_ENABLED'] == 'true', host: ENV['ENDPOINT_DATA_SOURCE_HOST'] },
+        cloud: { enabled: ENV['CLOUD_DATA_SOURCE_ENABLED'] == 'true', api_key: ENV['CLOUD_DATA_SOURCE_API_KEY'] },
+        xdr: { enabled: ENV['XDR_INTEGRATION_ENABLED'] == 'true', endpoint: ENV['XDR_INTEGRATION_ENDPOINT'], api_key: ENV['XDR_INTEGRATION_API_KEY'] },
+        dlp: { enabled: ENV['DLP_INTEGRATION_ENABLED'] == 'true', endpoint: ENV['DLP_INTEGRATION_ENDPOINT'], api_key: ENV['DLP_INTEGRATION_API_KEY'] },
+        mfa: { enabled: ENV['MFA_INTEGRATION_ENABLED'] == 'true', provider: ENV['MFA_INTEGRATION_PROVIDER'], config: ENV['MFA_INTEGRATION_CONFIG'] }
+      }
+    end
+
+    # Real-Time Monitoring Configuration
+    def setup_real_time_monitoring
+      @monitoring_interval = ENV['MONITORING_INTERVAL'] || 60
+      Thread.new do
+        loop do
+          collect_data_from_sources
+          sleep @monitoring_interval.to_i
+        end
+      end
+    end
+
+    def collect_data_from_sources
+      @data_sources.each do |source, config|
+        next unless config[:enabled]
+        # Placeholder for data collection logic
+        puts "Collecting data from #{source}"
+      end
+    end
+
+    def setup_compliance_and_retention
+      # Implement compliance and retention logic
+    end
+
+    def setup_api_security
+      # Configurar segurança da API
+      before do
+        next if request.path == '/health'
+        next if request.path == '/login'
+        next if request.path == '/auth/login'
+
+        unless SIEM::APISecurity.validate_request(request)
+          halt 401, { error: 'Unauthorized' }.to_json
+        end
+      end
+    end
+
+    # VirusTotal Security Routes
+    post '/api/virustotal/analyze-threat' do
+      content_type :json
+
+      begin
+        file = params[:file]
+        return { error: 'No file provided' }.to_json unless file
+
+        # Save file temporarily
+        temp_path = File.join(Dir.tmpdir, file[:filename])
+        File.open(temp_path, 'wb') { |f| f.write(file[:tempfile].read) }
+
+        # Calculate file hash
+        file_hash = Digest::SHA256.file(temp_path).hexdigest
+
+        # Analyze threat
+        result = SIEM::ThreatIntelligence.analyze_threat(file_hash)
+
+        # Clean up
+        File.delete(temp_path)
+
+        result.to_json
+      rescue => e
+        { error: e.message }.to_json
+      end
+    end
+
+    # Threat Analysis Routes
+    post '/api/threat/analyze' do
+      content_type :json
+
+      begin
+        file = params[:file]
+        return { error: 'No file provided' }.to_json unless file
+
+        # Save file temporarily
+        temp_path = File.join(Dir.tmpdir, file[:filename])
+        File.open(temp_path, 'wb') { |f| f.write(file[:tempfile].read) }
+
+        # Analyze threat
+        result = SIEM::ThreatIntelligence.analyze_threat(temp_path)
+
+        # Clean up
+        File.delete(temp_path)
+
+        result.to_json
+      rescue => e
+        { error: e.message }.to_json
+      end
     end
   end
 end

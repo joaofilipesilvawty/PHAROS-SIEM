@@ -8,6 +8,8 @@ module SIEM
         analyze_transaction(log)
       when 'account_access'
         analyze_account_access(log)
+      when 'user_behavior'
+        analyze_user_behavior(log)
       end
 
       # Atualizar métricas
@@ -85,6 +87,55 @@ module SIEM
           'medium',
           "Account accessed from multiple IPs",
           { unique_ips: recent_ips }
+        )
+      end
+
+      # Detectar anomalias em horários de acesso
+      detect_access_time_anomaly(log)
+    end
+
+    def self.detect_access_time_anomaly(log)
+      # Obter histórico de horários de acesso do usuário
+      access_times = SecurityLog
+        .where(user_id: log.user_id)
+        .where(event_type: 'account_access')
+        .where(Sequel.lit("timestamp > SYSDATE - 30")) # Últimos 30 dias
+        .select(:timestamp)
+        .map { |l| l.timestamp.hour }
+
+      current_hour = log.timestamp.hour
+
+      # Verificar se o horário atual está fora do padrão (simples desvio)
+      if access_times.any? && (current_hour < access_times.min - 3 || current_hour > access_times.max + 3)
+        Alert.create_from_security_log(
+          log,
+          'anomalous_access_time',
+          'medium',
+          "Account accessed at unusual time",
+          { current_hour: current_hour, typical_range: [access_times.min, access_times.max] }
+        )
+      end
+    end
+
+    def self.analyze_user_behavior(log)
+      # UEBA: Analisar padrões de comportamento do usuário
+      details = JSON.parse(log.details)
+      action = details['action']
+
+      # Verificar ações fora do padrão
+      user_actions = SecurityLog
+        .where(user_id: log.user_id)
+        .where(event_type: 'user_behavior')
+        .where(Sequel.lit("timestamp > SYSDATE - 7")) # Últimos 7 dias
+        .map { |l| JSON.parse(l.details)['action'] }
+
+      if user_actions.any? && !user_actions.include?(action)
+        Alert.create_from_security_log(
+          log,
+          'unusual_user_behavior',
+          'low',
+          "Unusual user behavior detected",
+          { action: action, typical_actions: user_actions.uniq }
         )
       end
     end
