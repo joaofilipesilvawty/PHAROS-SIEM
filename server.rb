@@ -1,6 +1,6 @@
-require 'sinatra/base'
+require 'sinatra'
 require 'sinatra/json'
-require 'elasticsearch'
+require 'opensearch'
 require 'dotenv'
 require 'bcrypt'
 require 'json'
@@ -11,15 +11,15 @@ Dotenv.load
 # =============================================
 module SIEM
   class Configuration
-    attr_accessor :elasticsearch_host, :elasticsearch_port,
-                  :elasticsearch_username, :elasticsearch_password,
+    attr_accessor :opensearch_host, :opensearch_port,
+                  :opensearch_username, :opensearch_password,
                   :log_level, :alert_thresholds
 
     def initialize
-      @elasticsearch_host = ENV['ELASTICSEARCH_HOST'] || 'localhost'
-      @elasticsearch_port = ENV['ELASTICSEARCH_PORT'] || '9200'
-      @elasticsearch_username = 'elastic'
-      @elasticsearch_password = 'joaofilipegsilva'
+      @opensearch_host = ENV['OPENSEARCH_HOST'] || 'localhost'
+      @opensearch_port = ENV['OPENSEARCH_PORT'] || '9200'
+      @opensearch_username = ENV['OPENSEARCH_USERNAME'] || 'admin'
+      @opensearch_password = ENV['OPENSEARCH_PASSWORD'] || 'admin'
       @log_level = ENV['LOG_LEVEL'] || 'info'
 
       @alert_thresholds = {
@@ -30,8 +30,8 @@ module SIEM
       }
     end
 
-    def elasticsearch_url
-      "http://#{@elasticsearch_host}:#{@elasticsearch_port}"
+    def opensearch_url
+      "http://#{@opensearch_host}:#{@opensearch_port}"
     end
   end
 
@@ -45,21 +45,28 @@ module SIEM
 
   module Database
     def self.connect
-      @connection ||= Elasticsearch::Client.new(
-        hosts: [{
-          host: SIEM.config.elasticsearch_host,
-          port: SIEM.config.elasticsearch_port,
-          user: SIEM.config.elasticsearch_username,
-          password: SIEM.config.elasticsearch_password,
-          scheme: 'http'
-        }],
-        log: SIEM.config.log_level == 'debug',
-        retry_on_failure: true,
+      host = ENV['OPENSEARCH_HOST'] || 'localhost'
+      port = ENV['OPENSEARCH_PORT'] || '9200'
+      username = ENV['OPENSEARCH_USERNAME'] || 'admin'
+      password = ENV['OPENSEARCH_PASSWORD'] || 'admin'
+
+      $OS = OpenSearch::Client.new(
+        host: "https://#{host}:#{port}",
+        user: username,
+        password: password,
         transport_options: {
-          request: {
-            timeout: 30
+          ssl: {
+            verify: false,
+            ca_file: nil
+          },
+          headers: {
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json'
           }
-        }
+        },
+        retry_on_failure: 3,
+        request_timeout: 30,
+        ssl_verify: false
       )
     end
 
@@ -68,6 +75,7 @@ module SIEM
     end
 
     def self.create_indices
+      client = connection
       indices = {
         admins: {
           mappings: {
@@ -128,8 +136,8 @@ module SIEM
       }
 
       indices.each do |index_name, settings|
-        unless connection.indices.exists?(index: index_name)
-          connection.indices.create(
+        unless client.indices.exists?(index: index_name)
+          client.indices.create(
             index: index_name,
             body: settings
           )
@@ -140,7 +148,7 @@ module SIEM
 end
 
 # Initialize database connection
-ES = SIEM::Database.connection
+OS = SIEM::Database.connection
 
 # Create indices if they don't exist
 SIEM::Database.create_indices
@@ -205,7 +213,7 @@ module SIEM
         redirect '/login'
       end
 
-      @admin = ES[:admins][id: session[:admin_id]]
+      @admin = OS[:admins][id: session[:admin_id]]
       unless @admin
         session.clear
         redirect '/login'
@@ -287,7 +295,7 @@ module SIEM
 
     get '/dashboard/profile' do
       authenticate_admin!
-      @admin = ES[:admins][id: session[:admin_id]]
+      @admin = OS[:admins][id: session[:admin_id]]
       erb :profile, layout: :layout
     end
 
@@ -296,7 +304,13 @@ module SIEM
     end
 
     get '/health' do
-      json Endpoints.health_check
+      begin
+        client = self.class.connect_to_opensearch
+        client.cluster.health
+        { status: 'healthy' }.to_json
+      rescue => e
+        { status: 'unhealthy', error: e.message }.to_json
+      end
     end
 
     post '/logs' do
@@ -363,8 +377,76 @@ module SIEM
         admin: @current_admin.to_hash
       }.to_json
     end
+
+    def self.connect_to_opensearch
+      host = ENV['OPENSEARCH_HOST'] || 'localhost'
+      port = ENV['OPENSEARCH_PORT'] || '9200'
+      username = ENV['OPENSEARCH_USERNAME'] || 'admin'
+      password = ENV['OPENSEARCH_PASSWORD'] || 'admin'
+
+      @client ||= OpenSearch::Client.new(
+        host: "https://#{host}:#{port}",
+        user: username,
+        password: password,
+        transport_options: {
+          ssl: {
+            verify: false,
+            ca_file: nil
+          },
+          headers: {
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json'
+          }
+        },
+        retry_on_failure: 3,
+        request_timeout: 30,
+        ssl_verify: false
+      )
+    end
+
+    def self.create_indices
+      indices = {
+        'logs' => {
+          mappings: {
+            properties: {
+              timestamp: { type: 'date' },
+              level: { type: 'keyword' },
+              message: { type: 'text' },
+              source: { type: 'keyword' }
+            }
+          }
+        },
+        'alerts' => {
+          mappings: {
+            properties: {
+              timestamp: { type: 'date' },
+              type: { type: 'keyword' },
+              severity: { type: 'keyword' },
+              message: { type: 'text' },
+              source_ip: { type: 'ip' },
+              details: { type: 'object' }
+            }
+          }
+        }
+      }
+
+      indices.each do |index_name, settings|
+        unless @client.indices.exists?(index: index_name)
+          @client.indices.create(
+            index: index_name,
+            body: settings
+          )
+        end
+      end
+    end
+
+    # Initialize OpenSearch connection and create indices
+    configure do
+      connect_to_opensearch
+      create_indices
+    end
   end
 end
 
 # Start the server
-SIEM::Server.run!
+SIEM::Server.run! if __FILE__ == $0
