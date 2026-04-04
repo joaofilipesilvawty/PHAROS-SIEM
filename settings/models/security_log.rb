@@ -1,6 +1,6 @@
 module SIEM
   class SecurityLog
-    INDEX = 'security_logs'.freeze
+    DS = DB[:security_logs]
 
     EVENT_TYPES = %w[
       login_success
@@ -73,44 +73,28 @@ module SIEM
 
       ts = h[:timestamp].is_a?(Time) ? h[:timestamp] : Time.parse(h[:timestamp].to_s)
 
-      body = {
+      id = DS.insert(
         event_type: h[:event_type].to_s,
         source: h[:source].to_s,
         severity: h[:severity].to_s,
         message: h[:message].to_s,
-        timestamp: ts.iso8601,
+        timestamp: ts,
         user_id: h[:user_id].to_s,
         ip_address: h[:ip_address].to_s,
         details: details_str
-      }
-
-      response = ES.index(index: INDEX, body: body)
-
-      Record.new(
-        id: response['_id'],
-        event_type: body[:event_type],
-        source: body[:source],
-        severity: body[:severity],
-        message: body[:message],
-        timestamp: ts,
-        user_id: body[:user_id],
-        ip_address: body[:ip_address],
-        details: details_str
       )
-    end
+      id ||= DS.max(:id)
 
-    def self.from_hit(hit)
-      s = hit['_source'] || {}
       Record.new(
-        id: hit['_id'],
-        event_type: s['event_type'],
-        source: s['source'],
-        severity: s['severity'],
-        message: s['message'],
-        timestamp: parse_ts(s['timestamp']),
-        user_id: s['user_id'],
-        ip_address: s['ip_address'],
-        details: s['details']
+        id: id,
+        event_type: h[:event_type].to_s,
+        source: h[:source].to_s,
+        severity: h[:severity].to_s,
+        message: h[:message].to_s,
+        timestamp: ts,
+        user_id: h[:user_id].to_s,
+        ip_address: h[:ip_address].to_s,
+        details: details_str
       )
     end
 
@@ -122,144 +106,80 @@ module SIEM
       Time.now
     end
 
+    def self.row_to_hash(row)
+      r = row.is_a?(Hash) ? row : row.to_hash
+      {
+        id: r[:id],
+        event_type: r[:event_type],
+        source: r[:source],
+        severity: r[:severity],
+        message: r[:message],
+        timestamp: parse_ts(r[:timestamp]),
+        user_id: r[:user_id],
+        ip_address: r[:ip_address],
+        details: r[:details]
+      }
+    end
+
     def self.recent(limit: 100)
-      res = ES.search(
-        index: INDEX,
-        body: {
-          query: { match_all: {} },
-          sort: [{ timestamp: { order: 'desc' } }],
-          size: limit
-        }
-      )
-      (res['hits']['hits'] || []).map { |h| from_hit(h).to_hash }
+      DS.reverse(:timestamp).limit(limit).map { |row| row_to_hash(row) }
     end
 
     def self.for_user(user_id, limit: 100)
-      res = ES.search(
-        index: INDEX,
-        body: {
-          query: { term: { user_id: user_id.to_s } },
-          sort: [{ timestamp: { order: 'desc' } }],
-          size: limit
-        }
-      )
-      (res['hits']['hits'] || []).map { |h| from_hit(h).to_hash }
+      DS.where(user_id: user_id.to_s).reverse(:timestamp).limit(limit).map { |row| row_to_hash(row) }
     end
 
     def self.count_in_window(user_id:, event_type:, since:)
       return 0 if user_id.nil? || user_id.to_s.empty?
 
-      ES.count(
-        index: INDEX,
-        body: {
-          query: {
-            bool: {
-              must: [
-                { term: { user_id: user_id.to_s } },
-                { term: { event_type: event_type.to_s } },
-                { range: { timestamp: { gte: since.iso8601 } } }
-              ]
-            }
-          }
-        }
-      )['count'].to_i
+      DS.where(user_id: user_id.to_s, event_type: event_type.to_s).where { timestamp >= since }.count
     end
 
     def self.distinct_ip_count(user_id:, event_type:, since:)
       return 0 if user_id.nil? || user_id.to_s.empty?
 
-      res = ES.search(
-        index: INDEX,
-        body: {
-          size: 0,
-          query: {
-            bool: {
-              must: [
-                { term: { user_id: user_id.to_s } },
-                { term: { event_type: event_type.to_s } },
-                { range: { timestamp: { gte: since.iso8601 } } }
-              ]
-            }
-          },
-          aggs: {
-            unique_ips: { cardinality: { field: 'ip_address' } }
-          }
-        }
-      )
-      (res.dig('aggregations', 'unique_ips', 'value') || 0).to_i
+      ips = DS.where(user_id: user_id.to_s, event_type: event_type.to_s)
+              .where { timestamp >= since }
+              .select_map(:ip_address)
+      ips.compact.uniq.size
     end
 
     def self.timestamps_for(user_id:, event_type:, since:)
       return [] if user_id.nil? || user_id.to_s.empty?
 
-      res = ES.search(
-        index: INDEX,
-        body: {
-          query: {
-            bool: {
-              must: [
-                { term: { user_id: user_id.to_s } },
-                { term: { event_type: event_type.to_s } },
-                { range: { timestamp: { gte: since.iso8601 } } }
-              ]
-            }
-          },
-          sort: [{ timestamp: { order: 'desc' } }],
-          size: 500,
-          _source: ['timestamp']
-        }
-      )
-      (res['hits']['hits'] || []).map do |hit|
-        parse_ts(hit.dig('_source', 'timestamp'))
-      end
+      DS.where(user_id: user_id.to_s, event_type: event_type.to_s)
+        .where { timestamp >= since }
+        .reverse(:timestamp)
+        .limit(500)
+        .select_map(:timestamp)
+        .map { |t| parse_ts(t) }
     end
 
     def self.behavior_actions(user_id:, since:)
       return [] if user_id.nil? || user_id.to_s.empty?
 
-      res = ES.search(
-        index: INDEX,
-        body: {
-          query: {
-            bool: {
-              must: [
-                { term: { user_id: user_id.to_s } },
-                { term: { event_type: 'user_behavior' } },
-                { range: { timestamp: { gte: since.iso8601 } } }
-              ]
-            }
-          },
-          sort: [{ timestamp: { order: 'desc' } }],
-          size: 200,
-          _source: ['details']
-        }
-      )
-      (res['hits']['hits'] || []).filter_map do |hit|
-        raw = hit.dig('_source', 'details')
-        next if raw.nil? || raw.to_s.empty?
-        parsed = JSON.parse(raw.to_s)
-        parsed['action']
-      rescue JSON::ParserError
-        nil
-      end
+      DS.where(user_id: user_id.to_s, event_type: 'user_behavior')
+        .where { timestamp >= since }
+        .reverse(:timestamp)
+        .limit(200)
+        .select_map(:details)
+        .filter_map do |raw|
+          next if raw.nil? || raw.to_s.empty?
+          parsed = raw.is_a?(Hash) ? raw : JSON.parse(raw.to_s)
+          parsed['action'] || parsed[:action]
+        rescue JSON::ParserError
+          nil
+        end
     end
 
     def self.hourly_activity_last_hours(hours)
       since = Time.now - (hours * 3600)
-      res = ES.search(
-        index: INDEX,
-        body: {
-          query: { range: { timestamp: { gte: since.iso8601 } } },
-          sort: [{ timestamp: { order: 'asc' } }],
-          size: 10_000,
-          _source: ['timestamp']
-        }
-      )
+      rows = DS.where { timestamp >= since }.order(:timestamp).limit(10_000).select_map(:timestamp)
 
       buckets = Hash.new(0)
-      (res['hits']['hits'] || []).each do |hit|
-        t = parse_ts(hit.dig('_source', 'timestamp'))
-        key = t.strftime('%Y-%m-%d %H:00:00')
+      rows.each do |t|
+        tt = parse_ts(t)
+        key = tt.strftime('%Y-%m-%d %H:00:00')
         buckets[key] += 1
       end
 

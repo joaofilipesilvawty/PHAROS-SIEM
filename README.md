@@ -30,31 +30,40 @@ Este é um Sistema de Informação e Eventos de Segurança (SIEM) desenvolvido p
 
 ## Requisitos
 
-- Ruby 3.0+
-- Oracle Database 12c ou superior
-- Oracle Instant Client
-- Ruby-OCI8
+- **JRuby** (versão em `.ruby-version`, ex. 9.4.5.0) e **JDK** 11+
+- **Oracle Database** 12c ou superior (acessível por rede)
+- **OJDBC** no repositório: `lib/ojdbc8-19.26.0.0.jar` (ou substitui por versão compatível com o teu Oracle)
+
+Não é necessário Oracle Instant Client nem `ruby-oci8` no sistema — a ligação é feita por JDBC dentro do JRuby.
 
 ## Configuração
 
 1. Clone o repositório
-2. Instale as dependências:
+2. Active o JRuby (ex. rbenv):
+
+   ```bash
+   rbenv install "$(cat .ruby-version)"
+   rbenv local "$(cat .ruby-version)"
+   ```
+
+3. Instale as dependências:
 
    ```bash
    bundle install
    ```
 
-3. Configure as variáveis de ambiente:
+4. Variáveis de ambiente:
 
    ```bash
    cp .env.example .env
-   # Edite o arquivo .env com suas configurações do Oracle
+   # Edite .env: ORACLE_HOST, ORACLE_PORT, ORACLE_SERVICE_NAME, ORACLE_USERNAME, ORACLE_PASSWORD
    ```
 
-4. Configure o Oracle Instant Client:
-   - Baixe e instale o Oracle Instant Client
-   - Configure as variáveis de ambiente ORACLE_HOME e LD_LIBRARY_PATH
-   - Instale o ruby-oci8
+5. Migrações:
+
+   ```bash
+   bundle exec rake db:migrate
+   ```
 
 ## Executando o Projeto
 

@@ -1,6 +1,6 @@
 require 'sinatra'
 require 'sinatra/json'
-require 'opensearch'
+require 'sequel'
 require 'dotenv'
 require 'bcrypt'
 require 'json'
@@ -10,31 +10,21 @@ require 'securerandom'
 Dotenv.load
 
 # =============================================
-# DATABASE CONFIGURATION Module
+# Configuração global SIEM
 # =============================================
 module SIEM
   class Configuration
-    attr_accessor :opensearch_host, :opensearch_port,
-                  :opensearch_username, :opensearch_password,
-                  :log_level, :alert_thresholds
+    attr_accessor :log_level, :alert_thresholds
 
     def initialize
-      @opensearch_host = ENV['OPENSEARCH_HOST'] || 'localhost'
-      @opensearch_port = ENV['OPENSEARCH_PORT'] || '9200'
-      @opensearch_username = ENV['OPENSEARCH_USERNAME'] || 'admin'
-      @opensearch_password = ENV['OPENSEARCH_PASSWORD'] || 'admin'
       @log_level = ENV['LOG_LEVEL'] || 'info'
 
       @alert_thresholds = {
         failed_login_attempts: 5,
-        suspicious_transaction_amount: 10000,
+        suspicious_transaction_amount: 10_000,
         multiple_transactions_period: 300,
         multiple_transactions_count: 5
       }
-    end
-
-    def opensearch_url
-      "http://#{@opensearch_host}:#{@opensearch_port}"
     end
   end
 
@@ -46,118 +36,46 @@ module SIEM
     yield(config) if block_given?
   end
 
+  # =============================================
+  # Oracle via JRuby + OJDBC (lib/ojdbc8-*.jar)
+  # =============================================
   module Database
-    def self.connect
-      host = ENV['OPENSEARCH_HOST'] || 'localhost'
-      port = ENV['OPENSEARCH_PORT'] || '9200'
-      username = ENV['OPENSEARCH_USERNAME'] || 'admin'
-      password = ENV['OPENSEARCH_PASSWORD'] || 'admin'
+    OJDBC_JAR = File.expand_path('lib/ojdbc8-19.26.0.0.jar', __dir__)
 
-      $OS = OpenSearch::Client.new(
-        host: "https://#{host}:#{port}",
-        user: username,
-        password: password,
-        transport_options: {
-          ssl: {
-            verify: false,
-            ca_file: nil
-          },
-          headers: {
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json'
-          }
-        },
-        retry_on_failure: 3,
-        request_timeout: 30,
-        ssl_verify: false
-      )
+    def self.connect
+      unless defined?(JRUBY_VERSION)
+        raise 'Este SIEM corre em JRuby para Oracle (OJDBC). Ex.: rbenv install "$(cat .ruby-version)" && rbenv local "$(cat .ruby-version)" && bundle install'
+      end
+
+      host = ENV.fetch('ORACLE_HOST', 'localhost')
+      port = ENV.fetch('ORACLE_PORT', '1521')
+      service = ENV.fetch('ORACLE_SERVICE_NAME', 'XEPDB1')
+      user = ENV.fetch('ORACLE_USERNAME', 'siem')
+      password = ENV.fetch('ORACLE_PASSWORD', 'siem')
+
+      raise "OJDBC jar não encontrado: #{OJDBC_JAR}" unless File.exist?(OJDBC_JAR)
+
+      require 'java'
+      require OJDBC_JAR
+
+      url = "jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=#{host})(PORT=#{port}))(CONNECT_DATA=(SERVICE_NAME=#{service})))"
+      Sequel.connect(url, user: user, password: password)
     end
 
     def self.connection
       connect
     end
 
-    def self.create_indices
-      client = connection
-      indices = {
-        admins: {
-          mappings: {
-            properties: {
-              username: { type: 'keyword' },
-              password_hash: { type: 'keyword' },
-              created_at: { type: 'date' },
-              updated_at: { type: 'date' }
-            }
-          }
-        },
-        sessions: {
-          mappings: {
-            properties: {
-              id: { type: 'keyword' },
-              admin_id: { type: 'keyword' },
-              created_at: { type: 'date' },
-              expires_at: { type: 'date' }
-            }
-          }
-        },
-        security_logs: {
-          mappings: {
-            properties: {
-              event_type: { type: 'keyword' },
-              source: { type: 'keyword' },
-              severity: { type: 'keyword' },
-              message: { type: 'text' },
-              timestamp: { type: 'date' },
-              user_id: { type: 'keyword' },
-              ip_address: { type: 'ip' },
-              details: { type: 'text' }
-            }
-          }
-        },
-        alerts: {
-          mappings: {
-            properties: {
-              alert_type: { type: 'keyword' },
-              severity: { type: 'keyword' },
-              message: { type: 'text' },
-              timestamp: { type: 'date' },
-              status: { type: 'keyword' },
-              details: { type: 'text' }
-            }
-          }
-        },
-        metrics: {
-          mappings: {
-            properties: {
-              metric_type: { type: 'keyword' },
-              value: { type: 'float' },
-              timestamp: { type: 'date' },
-              source: { type: 'keyword' }
-            }
-          }
-        }
-      }
-
-      indices.each do |index_name, settings|
-        unless client.indices.exists?(index: index_name)
-          client.indices.create(
-            index: index_name,
-            body: settings
-          )
-        end
-      end
+    def self.test_connection(db)
+      db.get(Sequel.lit('SELECT 1 FROM DUAL'))
+      true
     end
   end
 end
 
-# Initialize database connection
-OS = SIEM::Database.connection
-ES = OS
+DB = SIEM::Database.connection
 
-# Create indices if they don't exist
-SIEM::Database.create_indices
-
-# Now load the models and other dependencies
+# Modelos e serviços
 require_relative 'settings/models/security_log.rb'
 require_relative 'settings/models/alert.rb'
 require_relative 'settings/models/metric.rb'
@@ -185,7 +103,7 @@ rescue StandardError
 end
 
 begin
-  if ES.count(index: 'admins', body: { query: { match_all: {} } })['count'].to_i.zero?
+  if DB[:admins].count.zero?
     pwd = ENV['ADMIN_PASSWORD'] || SecureRandom.alphanumeric(12)
     SIEM::Admin.create('admin', pwd)
     warn "[SIEM] Utilizador admin criado (username: admin, password: #{pwd})"
@@ -347,8 +265,8 @@ module SIEM
 
     get '/health' do
       begin
-        OS.cluster.health
-        { status: 'healthy' }.to_json
+        SIEM::Database.test_connection(DB)
+        { status: 'healthy', database: 'oracle' }.to_json
       rescue StandardError => e
         { status: 'unhealthy', error: e.message }.to_json
       end

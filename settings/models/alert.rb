@@ -1,6 +1,6 @@
 module SIEM
   class Alert
-    INDEX = 'alerts'.freeze
+    DS = DB[:alerts]
 
     ALERT_TYPES = %w[
       multiple_failed_logins
@@ -23,7 +23,9 @@ module SIEM
       keyword_init: true
     ) do
       def details
-        JSON.parse(details_raw.to_s)
+        raw = details_raw
+        return raw if raw.is_a?(Hash)
+        JSON.parse(raw.to_s)
       rescue JSON::ParserError
         {}
       end
@@ -61,43 +63,30 @@ module SIEM
     end
 
     def self.create_from_security_log(_log, alert_type, severity, message, details = {})
-      details_json = details.to_json
+      details_json = details.is_a?(String) ? details : details.to_json
       ts = Time.now
-      body = {
+
+      id = DS.insert(
         alert_type: alert_type.to_s,
         severity: severity.to_s,
         message: message.to_s,
-        timestamp: ts.iso8601,
+        timestamp: ts,
         status: 'new',
         details: details_json
-      }
-
-      response = ES.index(index: INDEX, body: body)
+      )
+      id ||= DS.max(:id)
 
       inst = Instance.new(
-        id: response['_id'],
-        alert_type: body[:alert_type],
-        severity: body[:severity],
-        message: body[:message],
+        id: id,
+        alert_type: alert_type.to_s,
+        severity: severity.to_s,
+        message: message.to_s,
         timestamp: ts,
         status: 'new',
         details_raw: details_json
       )
       ResponseAutomation.execute_response(inst)
       inst
-    end
-
-    def self.from_hit(hit)
-      s = hit['_source'] || {}
-      Instance.new(
-        id: hit['_id'],
-        alert_type: s['alert_type'],
-        severity: s['severity'],
-        message: s['message'],
-        timestamp: parse_ts(s['timestamp']),
-        status: s['status'],
-        details_raw: s['details']
-      )
     end
 
     def self.parse_ts(raw)
@@ -108,41 +97,40 @@ module SIEM
       Time.now
     end
 
+    def self.normalize_details(raw)
+      return raw.to_json if raw.is_a?(Hash)
+      raw.to_s
+    end
+
+    def self.from_row(row)
+      return nil unless row
+      r = row.is_a?(Hash) ? row : row.to_hash
+      Instance.new(
+        id: r[:id],
+        alert_type: r[:alert_type],
+        severity: r[:severity],
+        message: r[:message],
+        timestamp: parse_ts(r[:timestamp]),
+        status: r[:status],
+        details_raw: r[:details]
+      )
+    end
+
     def self.find_by_id(id)
-      doc = ES.get(index: INDEX, id: id.to_s)
-      return nil unless doc && doc['found']
-      from_hit({ '_id' => doc['_id'], '_source' => doc['_source'] })
-    rescue StandardError
-      nil
+      row = DS[id: id.to_i]
+      from_row(row)
     end
 
     def self.recent(limit: 100)
-      res = ES.search(
-        index: INDEX,
-        body: {
-          query: { match_all: {} },
-          sort: [{ timestamp: { order: 'desc' } }],
-          size: limit
-        }
-      )
-      (res['hits']['hits'] || []).map { |h| from_hit(h) }
+      DS.reverse(:timestamp).limit(limit).map { |row| from_row(row) }
     end
 
     def self.count_by_severity(severity)
-      ES.count(
-        index: INDEX,
-        body: {
-          query: { term: { severity: severity.to_s } }
-        }
-      )['count'].to_i
+      DS.where(severity: severity.to_s).count
     end
 
     def self.update_status(id, status)
-      ES.update(
-        index: INDEX,
-        id: id.to_s,
-        body: { doc: { status: status.to_s } }
-      )
+      DS.where(id: id.to_i).update(status: status.to_s)
     end
   end
 end

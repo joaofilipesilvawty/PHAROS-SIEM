@@ -1,37 +1,32 @@
 module SIEM
   module SessionStore
-    INDEX = 'sessions'.freeze
+    DS = DB[:sessions]
 
     def self.create(session_id:, admin_id:, created_at:, expires_at:)
-      ES.index(
-        index: INDEX,
+      DS.insert(
         id: session_id.to_s,
-        body: {
-          id: session_id.to_s,
-          admin_id: admin_id.to_s,
-          created_at: created_at.iso8601,
-          expires_at: expires_at.iso8601
-        }
+        admin_id: admin_id.to_i,
+        created_at: created_at,
+        expires_at: expires_at
       )
     end
 
     def self.delete(session_id)
-      ES.delete(index: INDEX, id: session_id.to_s)
-    rescue StandardError
-      nil
+      DS.where(id: session_id.to_s).delete
     end
 
     def self.find_valid(session_id)
-      doc = ES.get(index: INDEX, id: session_id.to_s)
-      return nil unless doc && doc['found']
+      row = DS.first(id: session_id.to_s)
+      return nil unless row
 
-      src = doc['_source'] || {}
-      expires = Time.parse(src['expires_at'].to_s)
-      return nil if expires < Time.now
-
-      src
-    rescue StandardError
-      nil
+      r = row.is_a?(Hash) ? row : row.to_hash
+      return nil if r[:expires_at].nil? || r[:expires_at] < Time.now
+      {
+        'id' => r[:id].to_s,
+        'admin_id' => r[:admin_id],
+        'created_at' => r[:created_at],
+        'expires_at' => r[:expires_at]
+      }
     end
   end
 end

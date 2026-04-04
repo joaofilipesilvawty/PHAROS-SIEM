@@ -6,8 +6,8 @@ require 'securerandom'
 module SIEM
   module Endpoints
     def self.health_check
-      OS.cluster.health
-      { status: 'healthy', opensearch: 'connected' }
+      SIEM::Database.test_connection(DB)
+      { status: 'healthy', database: 'oracle' }
     rescue StandardError => e
       { status: 'unhealthy', error: e.message }
     end
@@ -129,17 +129,20 @@ module SIEM
 
       return { error: 'Invalid alert', status: 400 } unless Alert.validate_alert(payload)
 
-      body = {
+      tid = Time.parse(payload[:timestamp].to_s)
+      d = payload[:details] || {}
+      details_str = d.is_a?(Hash) ? d.to_json : d.to_s
+
+      id = DB[:alerts].insert(
         alert_type: payload[:alert_type].to_s,
         severity: payload[:severity].to_s,
         message: payload[:message].to_s,
-        timestamp: Time.parse(payload[:timestamp].to_s).iso8601,
+        timestamp: tid,
         status: payload[:status].to_s,
-        details: (payload[:details] || {}).to_json
-      }
-
-      res = ES.index(index: Alert::INDEX, body: body)
-      inst = Alert.from_hit({ '_id' => res['_id'], '_source' => body })
+        details: details_str
+      )
+      id ||= DB[:alerts].max(:id)
+      inst = Alert.find_by_id(id)
       { alert: inst.to_hash }
     rescue JSON::ParserError
       { error: 'Invalid JSON body', status: 400 }

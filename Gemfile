@@ -1,7 +1,7 @@
 # Gemfile
+# Runtime: JRuby + Oracle (OJDBC em lib/ojdbc8-*.jar). Ver .ruby-version
 source 'https://rubygems.org'
 
-# Database
 gem 'sequel'
 
 # Web Framework
@@ -20,9 +20,9 @@ gem 'dotenv'
 gem 'json'
 gem 'puma'
 gem 'rack-cors'
-gem 'opensearch-ruby'
-
+gem 'redis', '~> 5.0'
 group :development do
   gem 'pry'
+  gem 'rake'
   gem 'rubocop'
 end

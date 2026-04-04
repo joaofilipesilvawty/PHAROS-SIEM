@@ -1,2 +1,3 @@
 ---
 BUNDLE_PATH: "vendor/bundle"
+BUNDLE_BUILD__RUBY___OCI8: "--with-instant-client-dir=/Users/joaofilipesilva/oracle/instantclient_19_16"
