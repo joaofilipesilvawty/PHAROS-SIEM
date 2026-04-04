@@ -1,0 +1,14 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Relatórios</h1>
+  <a class="btn btn-sm btn-outline-secondary" href="/dashboard">Voltar</a>
+</div>
+
+<ul class="list-group">
+  <% (@report_types || []).each do |r| %>
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <%= r[:name] %>
+      <span class="badge bg-secondary rounded-pill"><%= r[:id] %></span>
+    </li>
+  <% end %>
+</ul>
+<p class="mt-3 text-muted small">Geração exportável ainda não implementada — apenas lista de tipos planeados.</p>

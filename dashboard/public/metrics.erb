@@ -1,0 +1,27 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Métricas</h1>
+  <a class="btn btn-sm btn-outline-secondary" href="/dashboard">Voltar</a>
+</div>
+
+<p class="text-muted">Últimos valores indexados por tipo (OpenSearch).</p>
+
+<% (@metrics || {}).each do |name, samples| %>
+  <div class="card mb-3">
+    <div class="card-header"><%= name %></div>
+    <div class="card-body">
+      <% if samples.nil? || samples.empty? %>
+        <em>Sem dados</em>
+      <% else %>
+        <ul class="list-unstyled mb-0">
+          <% samples.first(5).each do |row| %>
+            <li>
+              <code><%= row['timestamp'] || row[:timestamp] %></code>
+              — valor: <strong><%= row['value'] || row[:value] %></strong>
+              (<%= row['source'] || row[:source] %>)
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </div>
+  </div>
+<% end %>

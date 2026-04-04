@@ -15,15 +15,17 @@ module SIEM
         body: {
           query: {
             term: { username: username }
-          }
+          },
+          size: 1
         }
       )
 
       return nil if response['hits']['hits'].empty?
 
-      admin_data = response['hits']['hits'].first['_source']
+      hit = response['hits']['hits'].first
+      admin_data = hit['_source']
       stored_hash = BCrypt::Password.new(admin_data['password_hash'])
-      stored_hash == password ? new(id: admin_data['id'], username: admin_data['username']) : nil
+      stored_hash == password ? new(id: hit['_id'], username: admin_data['username']) : nil
     end
 
     def self.create(username, password)

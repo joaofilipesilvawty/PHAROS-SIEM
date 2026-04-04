@@ -6,6 +6,7 @@ require 'bcrypt'
 require 'json'
 require 'redis'
 require 'digest'
+require 'securerandom'
 Dotenv.load
 
 # =============================================
@@ -151,6 +152,7 @@ end
 
 # Initialize database connection
 OS = SIEM::Database.connection
+ES = OS
 
 # Create indices if they don't exist
 SIEM::Database.create_indices
@@ -160,6 +162,7 @@ require_relative 'settings/models/security_log.rb'
 require_relative 'settings/models/alert.rb'
 require_relative 'settings/models/metric.rb'
 require_relative 'settings/models/admin.rb'
+require_relative 'settings/models/session_store.rb'
 require_relative 'settings/services/security_analyzer.rb'
 require_relative 'settings/services/response_automation.rb'
 require_relative 'settings/services/ai_ml_analyzer.rb'
@@ -171,11 +174,25 @@ require_relative 'settings/endpoints/endpoints.rb'
 require_relative 'settings/middleware/middleware.rb'
 
 # Initialize Redis connection
-$redis = Redis.new(
-  host: ENV['REDIS_HOST'] || 'localhost',
-  port: ENV['REDIS_PORT'] || 6379,
-  password: ENV['REDIS_PASSWORD']
-)
+$redis = begin
+  Redis.new(
+    host: ENV['REDIS_HOST'] || 'localhost',
+    port: ENV['REDIS_PORT'] || 6379,
+    password: ENV['REDIS_PASSWORD']
+  )
+rescue StandardError
+  nil
+end
+
+begin
+  if ES.count(index: 'admins', body: { query: { match_all: {} } })['count'].to_i.zero?
+    pwd = ENV['ADMIN_PASSWORD'] || SecureRandom.alphanumeric(12)
+    SIEM::Admin.create('admin', pwd)
+    warn "[SIEM] Utilizador admin criado (username: admin, password: #{pwd})"
+  end
+rescue StandardError => e
+  warn "[SIEM] Bootstrap admin ignorado: #{e.message}"
+end
 
 # Initialize services
 SIEM::AIMLAnalyzer
@@ -194,16 +211,26 @@ module SIEM
     # =============================================
     SIEM::Middleware.configure(self)
 
+    helpers do
+      def latest_metric_scalar(metric_type)
+        hits = Metric.get_latest_metrics(metric_type, 1)
+        return 0 if hits.nil? || hits.empty?
+        v = hits.first['value'] || hits.first[:value]
+        v.nil? ? 0 : v.to_f.round(1)
+      end
+    end
+
     configure do
       set :bind, ENV['HOST'] || '127.0.0.1'
       set :port, ENV['PORT'] || 4567
       set :logging, true
       set :dump_errors, true
       set :show_exceptions, true
-      set :views, File.join(File.dirname(__FILE__), 'dashboard/templates')
-      set :public_folder, File.join(File.dirname(__FILE__), 'dashboard/templates')
+      dashboard_dir = File.join(File.dirname(__FILE__), 'dashboard', 'public')
+      set :views, dashboard_dir
+      set :public_folder, dashboard_dir
       enable :sessions
-      set :session_secret, ENV['SESSION_SECRET'] || 'a_very_long_and_secure_secret_key_that_is_at_least_64_characters_long_for_development_only_9876543210'
+      set :session_secret, ENV['SESSION_SECRET'] || SecureRandom.hex(64)
       enable :static
       setup_data_sources
       setup_real_time_monitoring
@@ -239,36 +266,25 @@ module SIEM
         redirect '/login'
       end
 
-      @admin = OS[:admins][id: session[:admin_id]]
+      @admin = Admin.find_by_id(session[:admin_id])
       unless @admin
         session.clear
         redirect '/login'
       end
 
       @metrics = {
-        critical_count: Alert.where(severity: 'Critical').count,
-        high_count: Alert.where(severity: 'High').count,
-        medium_count: Alert.where(severity: 'Medium').count,
-        low_count: Alert.where(severity: 'Low').count,
-        cpu_usage: Metric.get_latest_metrics('cpu_usage'),
-        memory_usage: Metric.get_latest_metrics('memory_usage'),
-        disk_usage: Metric.get_latest_metrics('disk_usage')
+        critical_count: Alert.count_by_severity('critical'),
+        high_count: Alert.count_by_severity('high'),
+        medium_count: Alert.count_by_severity('medium'),
+        low_count: Alert.count_by_severity('low'),
+        cpu_usage: latest_metric_scalar('cpu_usage'),
+        memory_usage: latest_metric_scalar('memory_usage'),
+        disk_usage: latest_metric_scalar('disk_usage')
       }
 
-      @alerts = Alert.order(Sequel.desc(:timestamp)).limit(10).map(&:to_hash)
-      @logs = SecurityLog.order(Sequel.desc(:timestamp)).limit(10).map(&:to_hash)
-
-      # Dados para o gráfico de timeline
-      timeline_data = SecurityLog
-        .where { timestamp > Sequel.lit("SYSDATE - 1") }
-        .group_and_count(Sequel.function(:TO_CHAR, :timestamp, 'YYYY-MM-DD HH24:00:00'))
-        .order(Sequel.function(:TO_CHAR, :timestamp, 'YYYY-MM-DD HH24:00:00'))
-        .all
-
-      @activity_timeline = {
-        labels: timeline_data.map { |d| d[:to_char] },
-        data: timeline_data.map { |d| d[:count] }
-      }
+      @alerts = Alert.recent(limit: 10).map(&:to_hash)
+      @logs = SecurityLog.recent(limit: 10)
+      @activity_timeline = SecurityLog.hourly_activity_last_hours(24)
 
       erb :dashboard, layout: :layout
     end
@@ -276,13 +292,13 @@ module SIEM
     # Dashboard routes
     get '/dashboard/alerts' do
       authenticate_admin!
-      @alerts = Alert.order(Sequel.desc(:timestamp)).map(&:to_hash)
+      @alerts = Alert.recent(limit: 200).map(&:to_hash)
       erb :alerts, layout: :layout
     end
 
     get '/dashboard/logs' do
       authenticate_admin!
-      @logs = SecurityLog.order(Sequel.desc(:timestamp)).map(&:to_hash)
+      @logs = SecurityLog.recent(limit: 200)
       erb :logs, layout: :layout
     end
 
@@ -321,7 +337,7 @@ module SIEM
 
     get '/dashboard/profile' do
       authenticate_admin!
-      @admin = OS[:admins][id: session[:admin_id]]
+      @admin = Admin.find_by_id(session[:admin_id])
       erb :profile, layout: :layout
     end
 
@@ -331,16 +347,22 @@ module SIEM
 
     get '/health' do
       begin
-        client = self.class.connect_to_opensearch
-        client.cluster.health
+        OS.cluster.health
         { status: 'healthy' }.to_json
-      rescue => e
+      rescue StandardError => e
         { status: 'unhealthy', error: e.message }.to_json
       end
     end
 
     post '/logs' do
-      json Endpoints.create_log(request)
+      result = Endpoints.create_log(request)
+      case result[:status]
+      when 'rejected'
+        status 422
+      when 'error'
+        status 400
+      end
+      json result
     end
 
     get '/logs' do
@@ -356,7 +378,9 @@ module SIEM
     end
 
     post '/alerts' do
-      json Endpoints.create_alert(request)
+      result = Endpoints.create_alert(request)
+      status result[:status].to_i if result[:status]
+      json result
     end
 
     before '/alerts' do
@@ -364,7 +388,9 @@ module SIEM
     end
 
     put '/alerts/:id' do
-      json Endpoints.update_alert(params[:id], request)
+      result = Endpoints.update_alert(params[:id], request)
+      status result[:status].to_i if result[:status]
+      json result
     end
 
     get '/metrics' do
@@ -388,11 +414,21 @@ module SIEM
 
     # Admin authentication middleware for protected routes
     def authenticate_admin!
-      return halt 401, { error: 'No authorization header' }.to_json unless request.env['HTTP_AUTHORIZATION']
+      if session[:admin_id]
+        @current_admin = Admin.find_by_id(session[:admin_id])
+        unless @current_admin
+          session.clear
+          redirect '/login'
+        end
+        return
+      end
+
+      unless request.env['HTTP_AUTHORIZATION']
+        halt 401, { error: 'No authorization header' }.to_json
+      end
 
       session_id = request.env['HTTP_AUTHORIZATION'].split(' ').last
       admin = SIEM::Endpoints.verify_session(session_id)
-
       halt 401, { error: 'Invalid or expired session' }.to_json unless admin
 
       @current_admin = admin
@@ -410,74 +446,6 @@ module SIEM
         message: "Protected route accessed successfully",
         admin: @current_admin.to_hash
       }.to_json
-    end
-
-    def self.connect_to_opensearch
-      host = ENV['OPENSEARCH_HOST'] || 'localhost'
-      port = ENV['OPENSEARCH_PORT'] || '9200'
-      username = ENV['OPENSEARCH_USERNAME'] || 'admin'
-      password = ENV['OPENSEARCH_PASSWORD'] || 'admin'
-
-      @client ||= OpenSearch::Client.new(
-        host: "https://#{host}:#{port}",
-        user: username,
-        password: password,
-        transport_options: {
-          ssl: {
-            verify: false,
-            ca_file: nil
-          },
-          headers: {
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json'
-          }
-        },
-        retry_on_failure: 3,
-        request_timeout: 30,
-        ssl_verify: false
-      )
-    end
-
-    def self.create_indices
-      indices = {
-        'logs' => {
-          mappings: {
-            properties: {
-              timestamp: { type: 'date' },
-              level: { type: 'keyword' },
-              message: { type: 'text' },
-              source: { type: 'keyword' }
-            }
-          }
-        },
-        'alerts' => {
-          mappings: {
-            properties: {
-              timestamp: { type: 'date' },
-              type: { type: 'keyword' },
-              severity: { type: 'keyword' },
-              message: { type: 'text' },
-              source_ip: { type: 'ip' },
-              details: { type: 'object' }
-            }
-          }
-        }
-      }
-
-      indices.each do |index_name, settings|
-        unless @client.indices.exists?(index: index_name)
-          @client.indices.create(
-            index: index_name,
-            body: settings
-          )
-        end
-      end
-    end
-
-    # Initialize OpenSearch connection and create indices
-    configure do
-      connect_to_opensearch
-      create_indices
     end
 
     # Multi-Source Data Collection Setup
@@ -516,11 +484,14 @@ module SIEM
     end
 
     def setup_api_security
-      # Configurar segurança da API
       before do
         next if request.path == '/health'
         next if request.path == '/login'
         next if request.path == '/auth/login'
+        next if request.path == '/auth/logout'
+        next if request.path == '/'
+        next if request.path.start_with?('/dashboard')
+        next if session[:admin_id] && request.path.start_with?('/api/')
 
         unless SIEM::APISecurity.validate_request(request)
           halt 401, { error: 'Unauthorized' }.to_json
@@ -540,11 +511,8 @@ module SIEM
         temp_path = File.join(Dir.tmpdir, file[:filename])
         File.open(temp_path, 'wb') { |f| f.write(file[:tempfile].read) }
 
-        # Calculate file hash
-        file_hash = Digest::SHA256.file(temp_path).hexdigest
-
-        # Analyze threat
-        result = SIEM::ThreatIntelligence.analyze_threat(file_hash)
+        # Análise completa a partir do ficheiro (hash + assinaturas + VirusTotal)
+        result = SIEM::ThreatIntelligence.analyze_threat(temp_path)
 
         # Clean up
         File.delete(temp_path)

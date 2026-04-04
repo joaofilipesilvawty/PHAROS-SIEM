@@ -1,11 +1,13 @@
+import os
 import requests
 import json
 from datetime import datetime
 
 
 class SIEMClient:
-    def __init__(self, base_url="http://localhost:4567"):
+    def __init__(self, base_url="http://localhost:4567", ingest_api_key=None):
         self.base_url = base_url
+        self.ingest_api_key = ingest_api_key or os.environ.get("INGEST_API_KEY", "")
 
     def send_login_attempt(self, user_id, success, ip_address, details=None):
         """Envia um log de tentativa de login para o SIEM"""
@@ -50,10 +52,13 @@ class SIEMClient:
 
     def _send_log(self, log_data):
         """Envia um log genérico para o SIEM"""
+        headers = {"Content-Type": "application/json"}
+        if self.ingest_api_key:
+            headers["X-API-Key"] = self.ingest_api_key
         response = requests.post(
             f"{self.base_url}/logs",
             json=log_data,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
         return response.json()
 

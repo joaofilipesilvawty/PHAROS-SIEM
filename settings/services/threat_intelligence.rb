@@ -119,9 +119,13 @@ module SIEM
     end
 
     def self.scan_with_virustotal(file_hash)
-      uri = URI(ENV['THREAT_FEED_VIRUSTOTAL_URL'])
+      url = ENV['THREAT_FEED_VIRUSTOTAL_URL'].to_s
+      key = ENV['THREAT_FEED_VIRUSTOTAL_KEY'].to_s
+      return { status: 'skipped', message: 'VirusTotal not configured' } if url.empty? || key.empty?
+
+      uri = URI(url)
       request = Net::HTTP::Get.new(uri)
-      request['X-API-KEY'] = ENV['THREAT_FEED_VIRUSTOTAL_KEY']
+      request['X-API-KEY'] = key
       request.set_form_data('resource' => file_hash)
 
       response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|

@@ -1,0 +1,15 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Perfil</h1>
+  <a class="btn btn-sm btn-outline-secondary" href="/dashboard">Voltar</a>
+</div>
+
+<% if @admin %>
+  <div class="card">
+    <div class="card-body">
+      <p><strong>ID:</strong> <code><%= @admin.id %></code></p>
+      <p><strong>Utilizador:</strong> <%= @admin.username %></p>
+    </div>
+  </div>
+<% else %>
+  <p class="text-danger">Sessão inválida.</p>
+<% end %>

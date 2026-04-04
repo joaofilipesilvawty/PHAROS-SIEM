@@ -1,6 +1,8 @@
 module SIEM
   class SecurityAnalyzer
     def self.analyze_log(log)
+      return unless log.is_a?(SecurityLog::Record)
+
       case log.event_type
       when 'login_failed'
         analyze_failed_login(log)
@@ -12,129 +14,119 @@ module SIEM
         analyze_user_behavior(log)
       end
 
-      # Atualizar métricas
       update_metrics(log)
     end
 
     private
 
-    def self.analyze_failed_login(log)
-      # Verificar múltiplas tentativas de login falhas
-      failed_attempts = SecurityLog
-        .where(user_id: log.user_id)
-        .where(event_type: 'login_failed')
-        .where(Sequel.lit("timestamp > SYSDATE - #{SIEM.config.alert_thresholds[:multiple_transactions_period]}/86400"))
-        .count
+    def self.period_start
+      secs = SIEM.config.alert_thresholds[:multiple_transactions_period].to_i
+      Time.now - secs
+    end
 
-      if failed_attempts >= SIEM.config.alert_thresholds[:failed_login_attempts]
-        Alert.create_from_security_log(
-          log,
-          'multiple_failed_logins',
-          'high',
-          "Multiple failed login attempts for user #{log.user_id}",
-          { attempts: failed_attempts }
-        )
-      end
+    def self.analyze_failed_login(log)
+      failed_attempts = SecurityLog.count_in_window(
+        user_id: log.user_id,
+        event_type: 'login_failed',
+        since: period_start
+      )
+
+      return unless failed_attempts >= SIEM.config.alert_thresholds[:failed_login_attempts]
+
+      Alert.create_from_security_log(
+        log,
+        'multiple_failed_logins',
+        'high',
+        "Multiple failed login attempts for user #{log.user_id}",
+        { attempts: failed_attempts }
+      )
     end
 
     def self.analyze_transaction(log)
-      details = JSON.parse(log.details)
+      details = JSON.parse(log.details.to_s)
       amount = details['amount'].to_f
 
-      # Verificar transações suspeitas
       if amount >= SIEM.config.alert_thresholds[:suspicious_transaction_amount]
         Alert.create_from_security_log(
           log,
           'suspicious_transaction',
           'medium',
-          "Suspicious transaction amount detected",
+          'Suspicious transaction amount detected',
           { amount: amount }
         )
       end
 
-      # Verificar múltiplas transações em curto período
-      recent_transactions = SecurityLog
-        .where(user_id: log.user_id)
-        .where(event_type: 'transaction')
-        .where(Sequel.lit("timestamp > SYSDATE - #{SIEM.config.alert_thresholds[:multiple_transactions_period]}/86400"))
-        .count
+      recent_transactions = SecurityLog.count_in_window(
+        user_id: log.user_id,
+        event_type: 'transaction',
+        since: period_start
+      )
 
-      if recent_transactions >= SIEM.config.alert_thresholds[:multiple_transactions_count]
-        Alert.create_from_security_log(
-          log,
-          'unusual_account_activity',
-          'medium',
-          "Multiple transactions detected in short period",
-          { transactions: recent_transactions }
-        )
-      end
+      return unless recent_transactions >= SIEM.config.alert_thresholds[:multiple_transactions_count]
+
+      Alert.create_from_security_log(
+        log,
+        'unusual_account_activity',
+        'medium',
+        'Multiple transactions detected in short period',
+        { transactions: recent_transactions }
+      )
     end
 
     def self.analyze_account_access(log)
-      # Verificar acessos de diferentes IPs
-      recent_ips = SecurityLog
-        .where(user_id: log.user_id)
-        .where(event_type: 'account_access')
-        .where(Sequel.lit("timestamp > SYSDATE - #{SIEM.config.alert_thresholds[:multiple_transactions_period]}/86400"))
-        .select(:ip_address)
-        .distinct
-        .count
+      recent_ips = SecurityLog.distinct_ip_count(
+        user_id: log.user_id,
+        event_type: 'account_access',
+        since: period_start
+      )
 
-      if recent_ips > 3 # Limite arbitrário, pode ser ajustado
+      if recent_ips > 3
         Alert.create_from_security_log(
           log,
           'unusual_account_activity',
           'medium',
-          "Account accessed from multiple IPs",
+          'Account accessed from multiple IPs',
           { unique_ips: recent_ips }
         )
       end
 
-      # Detectar anomalias em horários de acesso
       detect_access_time_anomaly(log)
     end
 
     def self.detect_access_time_anomaly(log)
-      # Obter histórico de horários de acesso do usuário
-      access_times = SecurityLog
-        .where(user_id: log.user_id)
-        .where(event_type: 'account_access')
-        .where(Sequel.lit("timestamp > SYSDATE - 30")) # Últimos 30 dias
-        .select(:timestamp)
-        .map { |l| l.timestamp.hour }
+      since = Time.now - (30 * 86_400)
+      access_times = SecurityLog.timestamps_for(
+        user_id: log.user_id,
+        event_type: 'account_access',
+        since: since
+      ).map(&:hour)
 
       current_hour = log.timestamp.hour
 
-      # Verificar se o horário atual está fora do padrão (simples desvio)
       if access_times.any? && (current_hour < access_times.min - 3 || current_hour > access_times.max + 3)
         Alert.create_from_security_log(
           log,
           'anomalous_access_time',
           'medium',
-          "Account accessed at unusual time",
+          'Account accessed at unusual time',
           { current_hour: current_hour, typical_range: [access_times.min, access_times.max] }
         )
       end
     end
 
     def self.analyze_user_behavior(log)
-      # UEBA: Analisar padrões de comportamento do usuário
-      details = JSON.parse(log.details)
+      details = JSON.parse(log.details.to_s)
       action = details['action']
 
-      # Verificar ações fora do padrão
-      user_actions = SecurityLog
-        .where(user_id: log.user_id)
-        .where(event_type: 'user_behavior')
-        .where(Sequel.lit("timestamp > SYSDATE - 7")) # Últimos 7 dias
-        .map { |l| JSON.parse(l.details)['action'] }
+      since = Time.now - (7 * 86_400)
+      user_actions = SecurityLog.behavior_actions(user_id: log.user_id, since: since)
 
-      if user_actions.any? && !user_actions.include?(action)
+      if user_actions.any? && action && !user_actions.include?(action)
         Alert.create_from_security_log(
           log,
           'unusual_user_behavior',
           'low',
-          "Unusual user behavior detected",
+          'Unusual user behavior detected',
           { action: action, typical_actions: user_actions.uniq }
         )
       end
@@ -147,7 +139,7 @@ module SIEM
       when 'login_success'
         Metric.record_metric('successful_logins', 1)
       when 'transaction'
-        details = JSON.parse(log.details)
+        details = JSON.parse(log.details.to_s)
         Metric.record_metric('total_transactions', 1)
         Metric.record_metric('average_transaction_amount', details['amount'].to_f)
       end

@@ -1,0 +1,13 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Configurações</h1>
+  <a class="btn btn-sm btn-outline-secondary" href="/dashboard">Voltar</a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Nível de log</h5>
+    <p class="card-text"><code><%= @settings && @settings[:log_level] %></code></p>
+    <h5 class="card-title mt-4">Limiares de alerta</h5>
+    <pre class="bg-light p-3 rounded small"><%= ERB::Util.html_escape((@settings[:alert_thresholds] || {}).inspect) %></pre>
+  </div>
+</div>

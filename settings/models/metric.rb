@@ -10,6 +10,12 @@ module SIEM
       system_errors
       api_requests
       response_time
+      cpu_usage
+      memory_usage
+      disk_usage
+      network_traffic
+      api_latency
+      error_rate
     ].freeze
 
     def self.validate_metric(metric_data)
