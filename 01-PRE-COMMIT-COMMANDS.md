@@ -1,3 +1,6 @@
+# 0. Fazer Migrate
+bundle exec rake db:migrate
+
 # 1. Adicionar todos os arquivos modificados
 git add -A
 

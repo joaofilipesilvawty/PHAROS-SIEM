@@ -1,95 +1,119 @@
-# SIEM - Sistema de Monitoramento de Segurança para Fintech
+# SIEM — Sistema de Informação e Eventos de Segurança
 
-Este é um Sistema de Informação e Eventos de Segurança (SIEM) desenvolvido para monitorar e analisar eventos de segurança em uma fintech.
+Aplicação web e API para recolha de logs de segurança, alertas, métricas e dashboard de administração, com persistência em **Oracle** via **JRuby + OJDBC**.
 
-## Funcionalidades Principais
+## Funcionalidades
 
-- Coleta e processamento de logs de segurança
-- Análise de padrões suspeitos
-- Geração de alertas em tempo real
-- Monitoramento de transações
-- Dashboard de métricas
-- Integração com Oracle Database
+- Dashboard web (login, alertas, logs, métricas, relatórios, definições) em Sinatra/ERB
+- API REST para logs, alertas e métricas; validação opcional via `APISecurity` (JWT, API key de ingestão)
+- Modelos Sequel: `admins`, `sessions`, `security_logs`, `alerts`, `metrics`
+- Integração opcional VirusTotal (chave em `.env`)
+- **Redis** opcional (rate limit / chaves)
+- Variáveis **Elasticsearch** no `.env` para configuração futura (a app ainda não envia dados ao cluster)
 
-## Estrutura do Projeto
+## Estrutura do projeto
 
 ```
 .
-├── server.rb              # Servidor principal
-├── settings/          # Configurações e modelos
-│   ├── config/       # Configurações do sistema
-│   ├── db/          # Esquema e migrações do banco de dados
-│   ├── endpoints/   # Endpoints da API
-│   ├── middleware/  # Middleware da aplicação
-│   ├── models/      # Modelos do banco de dados
-│   └── services/    # Serviços da aplicação
-├── spec/                # Testes
-├── log/                 # Logs da aplicação
-└── tmp/                 # Arquivos temporários
+├── server.rb                 # App Sinatra + ligação Oracle (JDBC)
+├── Rakefile                  # db:migrate
+├── lib/ojdbc8-19.26.0.0.jar  # Driver Oracle (JDBC)
+├── dashboard/public/         # Views ERB, assets, layout
+├── settings/
+│   ├── config/               # Inicializadores
+│   ├── db/migrations/        # Migrações Sequel (001_, 002_, … consecutivos)
+│   ├── endpoints/            # Handlers da API
+│   ├── middleware/
+│   ├── models/
+│   └── services/             # Análise, threat intel, API security, etc.
+├── install.sh                # Deploy Linux + systemd (não macOS)
 ```
 
 ## Requisitos
 
-- **JRuby** (versão em `.ruby-version`, ex. 9.4.5.0) e **JDK** 11+
-- **Oracle Database** 12c ou superior (acessível por rede)
-- **OJDBC** no repositório: `lib/ojdbc8-19.26.0.0.jar` (ou substitui por versão compatível com o teu Oracle)
+| Componente | Notas |
+|------------|--------|
+| **JRuby** | Versão em `.ruby-version` (ex.: 9.4.5.0) |
+| **JDK** | 11 ou superior (JRuby corre na JVM) |
+| **Oracle** | 12c+ com service name acessível na rede |
+| **OJDBC** | Ficheiro `lib/ojdbc8-*.jar` no repositório (ajusta a versão ao teu servidor Oracle se precisares) |
+| **Redis** | Opcional |
 
-Não é necessário Oracle Instant Client nem `ruby-oci8` no sistema — a ligação é feita por JDBC dentro do JRuby.
+Não é necessário Oracle Instant Client nem `ruby-oci8` no sistema: a ligação é feita só por JDBC no JRuby.
 
-## Configuração
+## Configuração rápida
 
-1. Clone o repositório
-2. Active o JRuby (ex. rbenv):
+1. **JRuby** (ex.: rbenv):
 
    ```bash
    rbenv install "$(cat .ruby-version)"
    rbenv local "$(cat .ruby-version)"
    ```
 
-3. Instale as dependências:
+2. **Dependências:**
 
    ```bash
    bundle install
    ```
 
-4. Variáveis de ambiente:
+3. **Ambiente:**
 
    ```bash
    cp .env.example .env
-   # Edite .env: ORACLE_HOST, ORACLE_PORT, ORACLE_SERVICE_NAME, ORACLE_USERNAME, ORACLE_PASSWORD
    ```
 
-5. Migrações:
+   Preenche no mínimo `ORACLE_HOST`, `ORACLE_PORT`, `ORACLE_SERVICE_NAME`, `ORACLE_USERNAME`, `ORACLE_PASSWORD`. Opcional: `REDIS_*`, `SESSION_SECRET`, `ADMIN_PASSWORD` (bootstrap do primeiro admin), `INGEST_API_KEY`, `API_JWT_SECRET`, VirusTotal, bloco Elasticsearch.
+
+4. **Migrações** (ficheiros numerados **001, 002, 003…** sem saltos — requisito do Sequel):
 
    ```bash
    bundle exec rake db:migrate
    ```
 
-## Executando o Projeto
+   O `Rakefile` carrega `server.rb`; na **primeira** corrida podes ver `[SIEM] Bootstrap admin ignorado` se as tabelas ainda não existiam — é normal **antes** das migrações terminarem. Depois das migrações, ao arrancar o servidor o bootstrap do `admin` corre se a tabela `admins` estiver vazia (ou define `ADMIN_PASSWORD` no `.env`).
+
+## Executar
 
 ```bash
 bundle exec ruby server.rb
 ```
 
-## Endpoints da API
+Por omissão: `http://127.0.0.1:4567` — login em `/login`, dashboard em `/dashboard`.
 
-- `GET /health` - Verifica a saúde do sistema
-- `POST /logs` - Recebe logs de segurança
-- `GET /alerts` - Consulta alertas
-- `GET /metrics` - Consulta métricas
+### Linux (systemd)
+
+Para instalação em servidor Linux, vê `install.sh` (requer root; no macOS o script apenas imprime instruções).
+
+## API e rotas úteis
+
+| Método | Caminho | Descrição |
+|--------|---------|-----------|
+| `GET` | `/health` | Estado da ligação à base de dados |
+| `GET` | `/login` | Página de login |
+| `POST` | `/auth/login` | Login de sessão (form) |
+| `GET` | `/dashboard` | Dashboard (sessão obrigatória) |
+| `POST` | `/logs` | Ingestão de logs (validação conforme `APISecurity`) |
+| `GET` | `/logs` | Listagem de logs |
+| `GET`/`POST` | `/alerts` | Consulta / criação de alertas |
+| `GET` | `/metrics` | Métricas |
+| `POST` | `/admin/login` | Login JSON (token de sessão em `sessions`) |
+| `POST` | `/api/virustotal/analyze-threat` | Análise com ficheiro (ThreatIntelligence) |
+
+Rotas sob `/dashboard/*` e parte da API podem exigir autenticação; consulta `settings/services/api_security.rb` e o filtro `before` em `server.rb`.
+
+## Resolução de problemas
+
+- **`Errno::EADDRINUSE` na porta 4567** — Já há outro processo (ex.: instância anterior do servidor). Identifica com `lsof -nP -iTCP:4567 -sTCP:LISTEN` e termina o PID, ou altera `PORT` no `.env`.
+- **`Missing migration version: 1`** — Os ficheiros em `settings/db/migrations/` têm de começar em `001_` e ser consecutivos.
+- **`ORA-00942` tabela não existe** — Corre `bundle exec rake db:migrate` com credenciais Oracle corretas.
 
 ## Desenvolvimento
 
-Para executar os testes:
-
-```bash
-bundle exec rspec
-```
+Ferramentas em grupo `:development` do `Gemfile`: Rake, RuboCop, Pry. Não há suíte RSpec incluída neste repositório; podes adicionar testes à medida.
 
 ## Contribuição
 
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
+1. Fork do repositório  
+2. Branch para a funcionalidade (`git checkout -b feature/nome`)  
+3. Commit com mensagens claras  
+4. Push e Pull Request  
