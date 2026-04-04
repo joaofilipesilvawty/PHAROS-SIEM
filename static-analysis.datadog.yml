@@ -4,3 +4,15 @@ rulesets:
   - ruby-security
   - ruby-best-practices
   - rails-best-practices
+  - datadog-ruby-best-practices
+  - datadog-ruby-security
+  - datadog-ruby-performance
+  - datadog-ruby-complexity
+  - datadog-ruby-style
+  - datadog-ruby-documentation
+  - datadog-ruby-metrics
+  - datadog-ruby-logging
+  - datadog-ruby-tracing
+  - datadog-ruby-testing
+  - datadog-ruby-documentation
+  - datadog-ruby-metrics

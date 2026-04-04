@@ -150,10 +150,42 @@ module SIEM
       enable :sessions
       set :session_secret, ENV['SESSION_SECRET'] || SecureRandom.hex(64)
       enable :static
-      setup_data_sources
-      setup_real_time_monitoring
-      setup_compliance_and_retention
-      setup_api_security
+
+      set :data_sources, {
+        network: { enabled: ENV['NETWORK_DATA_SOURCE_ENABLED'] == 'true', host: ENV['NETWORK_DATA_SOURCE_HOST'] },
+        endpoint: { enabled: ENV['ENDPOINT_DATA_SOURCE_ENABLED'] == 'true', host: ENV['ENDPOINT_DATA_SOURCE_HOST'] },
+        cloud: { enabled: ENV['CLOUD_DATA_SOURCE_ENABLED'] == 'true', api_key: ENV['CLOUD_DATA_SOURCE_API_KEY'] },
+        xdr: { enabled: ENV['XDR_INTEGRATION_ENABLED'] == 'true', endpoint: ENV['XDR_INTEGRATION_ENDPOINT'], api_key: ENV['XDR_INTEGRATION_API_KEY'] },
+        dlp: { enabled: ENV['DLP_INTEGRATION_ENABLED'] == 'true', endpoint: ENV['DLP_INTEGRATION_ENDPOINT'], api_key: ENV['DLP_INTEGRATION_API_KEY'] },
+        mfa: { enabled: ENV['MFA_INTEGRATION_ENABLED'] == 'true', provider: ENV['MFA_INTEGRATION_PROVIDER'], config: ENV['MFA_INTEGRATION_CONFIG'] }
+      }
+      set :monitoring_interval, (ENV['MONITORING_INTERVAL'] || 60).to_i
+
+      Thread.new do
+        loop do
+          interval = Server.settings.monitoring_interval
+          Server.settings.data_sources.each do |source, config|
+            next unless config[:enabled]
+
+            warn "[SIEM] Collecting data from #{source}"
+          end
+          sleep interval.to_i
+        end
+      end
+
+      before do
+        next if request.path == '/health'
+        next if request.path == '/login'
+        next if request.path == '/auth/login'
+        next if request.path == '/auth/logout'
+        next if request.path == '/'
+        next if request.path.start_with?('/dashboard')
+        next if session[:admin_id] && request.path.start_with?('/api/')
+
+        unless SIEM::APISecurity.validate_request(request)
+          halt 401, { error: 'Unauthorized' }.to_json
+        end
+      end
     end
 
     # =============================================
@@ -364,57 +396,6 @@ module SIEM
         message: "Protected route accessed successfully",
         admin: @current_admin.to_hash
       }.to_json
-    end
-
-    # Multi-Source Data Collection Setup
-    def setup_data_sources
-      @data_sources = {
-        network: { enabled: ENV['NETWORK_DATA_SOURCE_ENABLED'] == 'true', host: ENV['NETWORK_DATA_SOURCE_HOST'] },
-        endpoint: { enabled: ENV['ENDPOINT_DATA_SOURCE_ENABLED'] == 'true', host: ENV['ENDPOINT_DATA_SOURCE_HOST'] },
-        cloud: { enabled: ENV['CLOUD_DATA_SOURCE_ENABLED'] == 'true', api_key: ENV['CLOUD_DATA_SOURCE_API_KEY'] },
-        xdr: { enabled: ENV['XDR_INTEGRATION_ENABLED'] == 'true', endpoint: ENV['XDR_INTEGRATION_ENDPOINT'], api_key: ENV['XDR_INTEGRATION_API_KEY'] },
-        dlp: { enabled: ENV['DLP_INTEGRATION_ENABLED'] == 'true', endpoint: ENV['DLP_INTEGRATION_ENDPOINT'], api_key: ENV['DLP_INTEGRATION_API_KEY'] },
-        mfa: { enabled: ENV['MFA_INTEGRATION_ENABLED'] == 'true', provider: ENV['MFA_INTEGRATION_PROVIDER'], config: ENV['MFA_INTEGRATION_CONFIG'] }
-      }
-    end
-
-    # Real-Time Monitoring Configuration
-    def setup_real_time_monitoring
-      @monitoring_interval = ENV['MONITORING_INTERVAL'] || 60
-      Thread.new do
-        loop do
-          collect_data_from_sources
-          sleep @monitoring_interval.to_i
-        end
-      end
-    end
-
-    def collect_data_from_sources
-      @data_sources.each do |source, config|
-        next unless config[:enabled]
-        # Placeholder for data collection logic
-        puts "Collecting data from #{source}"
-      end
-    end
-
-    def setup_compliance_and_retention
-      # Implement compliance and retention logic
-    end
-
-    def setup_api_security
-      before do
-        next if request.path == '/health'
-        next if request.path == '/login'
-        next if request.path == '/auth/login'
-        next if request.path == '/auth/logout'
-        next if request.path == '/'
-        next if request.path.start_with?('/dashboard')
-        next if session[:admin_id] && request.path.start_with?('/api/')
-
-        unless SIEM::APISecurity.validate_request(request)
-          halt 401, { error: 'Unauthorized' }.to_json
-        end
-      end
     end
 
     # VirusTotal Security Routes
