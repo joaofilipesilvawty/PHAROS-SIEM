@@ -420,30 +420,6 @@ module OPSMON
       }.to_json
     end
 
-    # VirusTotal Security Routes
-    post '/api/virustotal/analyze-threat' do
-      content_type :json
-
-      begin
-        file = params[:file]
-        return { error: 'No file provided' }.to_json unless file
-
-        # Save file temporarily
-        temp_path = File.join(Dir.tmpdir, file[:filename])
-        File.open(temp_path, 'wb') { |f| f.write(file[:tempfile].read) }
-
-        # Análise completa a partir do ficheiro (hash + assinaturas + VirusTotal)
-        result = OPSMON::ThreatIntelligence.analyze_threat(temp_path)
-
-        # Clean up
-        File.delete(temp_path)
-
-        result.to_json
-      rescue => e
-        { error: e.message }.to_json
-      end
-    end
-
     # Threat Analysis Routes
     post '/api/threat/analyze' do
       content_type :json
