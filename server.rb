@@ -158,9 +158,9 @@ module OPSMON
       set :logging, true
       set :dump_errors, true
       set :show_exceptions, true
-      dashboard_dir = File.join(File.dirname(__FILE__), 'dashboard', 'public')
-      set :views, dashboard_dir
-      set :public_folder, dashboard_dir
+      ui_root = File.join(File.dirname(__FILE__), 'settings', 'observability', 'ui')
+      set :views, File.join(ui_root, 'views')
+      set :public_folder, File.join(ui_root, 'public')
       enable :sessions
       set :session_secret, ENV['SESSION_SECRET'] || SecureRandom.hex(64)
       enable :static
@@ -193,9 +193,13 @@ module OPSMON
         next if request.path == '/opsmon/status'
         next if request.path == '/opsmon/dashboard/ui'
         next if request.path == '/opsmon/dashboard/dashboard.js'
+        next if request.path == '/opsmon/dashboard/app.js'
+        next if request.path == '/opsmon/dashboard/styles.css'
         next if request.path == '/login'
         next if request.path == '/auth/login'
         next if request.path == '/auth/logout'
+        next if request.path.start_with?('/css/', '/js/', '/images/')
+        next if request.path.match?(%r{\A/[\w.-]+\.(css|js|map|ico|png|jpe?g|gif|svg|woff2?)\z}i)
         next if request.path == '/'
         next if request.path.start_with?('/dashboard')
         next if session[:admin_id] && request.path.start_with?('/api/')

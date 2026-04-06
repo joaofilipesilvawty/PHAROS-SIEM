@@ -10,6 +10,8 @@ module OPSMON
       # Rotas públicas que não precisam de autenticação
       public_routes = ['/login', '/auth/login', '/css', '/js', '/images']
       return @app.call(env) if public_routes.any? { |route| request.path.start_with?(route) }
+      # Ficheiros estáticos em /css, /js, /images e na raiz do public (ex. /favicon.ico)
+      return @app.call(env) if request.path.match?(%r{\A/[\w.-]+\.(css|js|map|ico|png|jpe?g|gif|svg|woff2?)\z}i)
 
       # Verificar se o usuário está autenticado
       session = request.session

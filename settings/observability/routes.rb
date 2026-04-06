@@ -45,16 +45,28 @@ module OPSMON
       app.get '/opsmon/dashboard/ui' do
         content_type :html
         headers['Cache-Control'] = 'no-store'
-        path = File.join(UI_DIR, 'dashboard.html')
+        path = File.join(UI_DIR, 'public', 'dashboard.html')
         halt 404, 'UI não encontrada' unless File.file?(path)
 
         File.read(path, encoding: 'UTF-8')
       end
 
-      app.get '/opsmon/dashboard/dashboard.js' do
+      opsmon_dashboard_js = lambda do
         content_type 'application/javascript; charset=utf-8'
         headers['Cache-Control'] = 'no-store'
-        path = File.join(UI_DIR, 'dashboard.js')
+        path = File.join(UI_DIR, 'public', 'js', 'app.js')
+        halt 404 unless File.file?(path)
+
+        File.read(path, encoding: 'UTF-8')
+      end
+
+      app.get '/opsmon/dashboard/app.js', &opsmon_dashboard_js
+      app.get '/opsmon/dashboard/dashboard.js', &opsmon_dashboard_js
+
+      app.get '/opsmon/dashboard/styles.css' do
+        content_type 'text/css; charset=utf-8'
+        headers['Cache-Control'] = 'no-store'
+        path = File.join(UI_DIR, 'public', 'css', 'styles.css')
         halt 404 unless File.file?(path)
 
         File.read(path, encoding: 'UTF-8')

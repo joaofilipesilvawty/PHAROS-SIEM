@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="dark"/>
+  <title>OpsMon Dashboard</title>
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>OpsMon Dashboard</h1>
+      <p>Sem OTP por agora. Usa JWT ou API key para consultar <code>/opsmon/dashboard/snapshot</code>.</p>
+    </div>
+    <div class="panel">
+      <div class="row">
+        <div><label for="token">Token / API key</label><input id="token" type="password" autocomplete="off" placeholder="X-API-Key ou Bearer ..."/></div>
+        <div><label for="tenant">Tenant</label><input id="tenant" type="text" value="default"/></div>
+        <div><label for="interval">Auto-refresh (seg)</label><select id="interval"><option value="0">Desligado</option><option value="5">5</option><option value="10" selected>10</option><option value="30">30</option></select></div>
+        <div><label for="filter">Filtro de séries</label><input id="filter" type="text" placeholder="nome da métrica"/></div>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button id="save" type="button">Guardar sessão</button>
+        <button id="load" class="secondary" type="button">Refresh</button>
+        <span id="status-pill" class="badge"><span class="dot"></span><span>Unknown</span></span>
+        <span id="ts" style="color:var(--muted);"></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="cards">
+        <div class="card"><div class="k">Counter sum</div><div class="v" id="stat-csum">-</div></div>
+        <div class="card"><div class="k">Gauge avg</div><div class="v" id="stat-gavg">-</div></div>
+        <div class="card"><div class="k">Process CPU</div><div class="v" id="stat-cpu">-</div></div>
+        <div class="card"><div class="k">Process RSS</div><div class="v" id="stat-rss">-</div></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel span-6">
+        <h2>Counter series</h2>
+        <canvas id="chart-counters"></canvas>
+      </div>
+      <div class="panel span-6">
+        <h2>Gauge series</h2>
+        <canvas id="chart-gauges"></canvas>
+      </div>
+      <div class="panel span-6">
+        <h2>Counters (<span id="meta-c">0</span>)</h2>
+        <table><thead><tr><th data-sort="name">name</th><th data-sort="labels">labels</th><th data-sort="value">value</th></tr></thead><tbody id="tbl-c"></tbody></table>
+      </div>
+      <div class="panel span-6">
+        <h2>Gauges (<span id="meta-g">0</span>)</h2>
+        <table><thead><tr><th data-sort="name">name</th><th data-sort="labels">labels</th><th data-sort="value">value</th></tr></thead><tbody id="tbl-g"></tbody></table>
+      </div>
+      <div class="panel span-6">
+        <h2>Health</h2>
+        <pre id="health-json">{}</pre>
+      </div>
+      <div class="panel span-6">
+        <h2>Snapshot Raw</h2>
+        <pre id="raw-json">{}</pre>
+      </div>
+    </div>
+  </div>
+  <script src="./js/app.js"></script>
+</body>
+</html>
