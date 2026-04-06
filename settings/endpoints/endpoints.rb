@@ -13,8 +13,8 @@ module SIEM
     end
 
     def self.login(request)
-      username = request.params['username']
-      password = request.params['password']
+      username = request.params['username'].to_s.strip
+      password = request.params['password'].to_s
 
       admin = Admin.authenticate(username, password)
       return { success: false, message: 'Invalid username or password' } unless admin
@@ -35,8 +35,8 @@ module SIEM
 
     def self.admin_login(request)
       data = JSON.parse(request.body.read)
-      username = data['username']
-      password = data['password']
+      username = data['username'].to_s.strip
+      password = data['password'].to_s
 
       admin = Admin.authenticate(username, password)
       return { status: 401, body: { error: 'Invalid username or password' }.to_json } unless admin

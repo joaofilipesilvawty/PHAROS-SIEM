@@ -1,31 +1,34 @@
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-  <h1 class="h2">Logs de segurança</h1>
-  <a class="btn btn-sm btn-outline-secondary" href="/dashboard">Voltar</a>
+<div class="gf-page-head">
+  <h1>Logs de segurança</h1>
+  <a class="gf-btn" href="/dashboard">← Dashboard</a>
 </div>
 
-<div class="table-responsive">
-  <table class="table table-striped table-sm">
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>Evento</th>
-        <th>Severidade</th>
-        <th>Utilizador</th>
-        <th>IP</th>
-        <th>Mensagem</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% (@logs || []).each do |log| %>
+<div class="gf-panel">
+  <div class="gf-panel-h">Eventos recentes</div>
+  <div class="gf-panel-b gf-table-wrap">
+    <table class="gf-table">
+      <thead>
         <tr>
-          <td><%= log[:timestamp] ? log[:timestamp].strftime('%Y-%m-%d %H:%M') : '-' %></td>
-          <td><%= log[:event_type] %></td>
-          <td><%= log[:severity] %></td>
-          <td><%= log[:user_id] %></td>
-          <td><%= log[:ip_address] %></td>
-          <td><%= log[:message].to_s[0, 60] %><%= log[:message].to_s.length > 60 ? '…' : '' %></td>
+          <th>Data</th>
+          <th>Evento</th>
+          <th>Severidade</th>
+          <th>Utilizador</th>
+          <th>IP</th>
+          <th>Mensagem</th>
         </tr>
-      <% end %>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        <% (@logs || []).each do |log| %>
+          <tr>
+            <td><%= log[:timestamp] ? log[:timestamp].strftime('%Y-%m-%d %H:%M') : '-' %></td>
+            <td><%= log[:event_type] %></td>
+            <td><%= log[:severity] %></td>
+            <td><%= log[:user_id] %></td>
+            <td><%= log[:ip_address] %></td>
+            <td><%= log[:message].to_s[0, 60] %><%= log[:message].to_s.length > 60 ? '…' : '' %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
 </div>

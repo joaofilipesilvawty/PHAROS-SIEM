@@ -1,23 +1,23 @@
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-  <h1 class="h2">Métricas</h1>
-  <a class="btn btn-sm btn-outline-secondary" href="/dashboard">Voltar</a>
+<div class="gf-page-head">
+  <h1>Métricas</h1>
+  <a class="gf-btn" href="/dashboard">← Dashboard</a>
 </div>
 
-<p class="text-muted">Últimos valores gravados por tipo (Oracle).</p>
+<p class="gf-help">Últimos valores gravados por tipo (Oracle).</p>
 
 <% (@metrics || {}).each do |name, samples| %>
-  <div class="card mb-3">
-    <div class="card-header"><%= name %></div>
-    <div class="card-body">
+  <div class="gf-panel">
+    <div class="gf-panel-h"><%= name %></div>
+    <div class="gf-panel-b">
       <% if samples.nil? || samples.empty? %>
-        <em>Sem dados</em>
+        <p class="gf-empty">Sem dados</p>
       <% else %>
-        <ul class="list-unstyled mb-0">
+        <ul class="gf-metric-list">
           <% samples.first(5).each do |row| %>
             <li>
-              <code><%= row['timestamp'] || row[:timestamp] %></code>
-              — valor: <strong><%= row['value'] || row[:value] %></strong>
-              (<%= row['source'] || row[:source] %>)
+              <code class="gf-code"><%= row['timestamp'] || row[:timestamp] %></code>
+              <span class="gf-metric-val"><%= row['value'] || row[:value] %></span>
+              <span class="gf-metric-src">(<%= row['source'] || row[:source] %>)</span>
             </li>
           <% end %>
         </ul>

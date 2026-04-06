@@ -1,93 +1,81 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt">
 <head>
-  <title>SIEM Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.css" rel="stylesheet">
-  <style>
-    .sidebar {
-      min-height: 100vh;
-      background-color: #343a40;
-    }
-    .nav-link {
-      color: rgba(255,255,255,.75);
-    }
-    .nav-link:hover {
-      color: rgba(255,255,255,1);
-    }
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SIEM</title>
+  <link rel="stylesheet" href="/css/siem-grafana.css">
 </head>
 <body>
-  <div class="container-fluid">
-    <div class="row">
-      <!-- Sidebar -->
-      <div class="col-md-3 col-lg-2 d-md-block sidebar collapse">
-        <div class="position-sticky pt-3">
-          <ul class="nav flex-column">
-            <li class="nav-item">
-              <a class="nav-link active" href="/dashboard">
-                <span data-feather="home"></span>
-                Dashboard
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/dashboard/alerts">
-                <span data-feather="alert-triangle"></span>
-                Alertas
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/dashboard/logs">
-                <span data-feather="file-text"></span>
-                Logs
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/dashboard/metrics">
-                <span data-feather="bar-chart-2"></span>
-                Métricas
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/dashboard/reports">
-                <span data-feather="printer"></span>
-                Relatórios
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/dashboard/settings">
-                <span data-feather="settings"></span>
-                Configurações
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/dashboard/profile">
-                <span data-feather="user"></span>
-                Perfil
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/auth/logout">
-                <span data-feather="log-out"></span>
-                Sair
-              </a>
-            </li>
-          </ul>
-        </div>
-      </div>
+  <% path = request.path_info %>
+  <div class="gf-app">
+    <aside class="gf-sidenav" aria-label="Navegação principal">
+      <div class="gf-sidenav-brand">SIEM <span>·</span> consola</div>
+      <ul class="gf-sidenav-nav">
+        <li>
+          <a class="gf-nav-link<%= ' is-active' if path == '/dashboard' %>" href="/dashboard">
+            <i data-feather="home"></i>
+            Dashboard
+          </a>
+        </li>
+        <li>
+          <a class="gf-nav-link<%= ' is-active' if path.start_with?('/dashboard/alerts') %>" href="/dashboard/alerts">
+            <i data-feather="alert-triangle"></i>
+            Alertas
+          </a>
+        </li>
+        <li>
+          <a class="gf-nav-link<%= ' is-active' if path.start_with?('/dashboard/logs') %>" href="/dashboard/logs">
+            <i data-feather="file-text"></i>
+            Logs
+          </a>
+        </li>
+        <li>
+          <a class="gf-nav-link<%= ' is-active' if path.start_with?('/dashboard/metrics') %>" href="/dashboard/metrics">
+            <i data-feather="bar-chart-2"></i>
+            Métricas
+          </a>
+        </li>
+        <li>
+          <a class="gf-nav-link<%= ' is-active' if path.start_with?('/dashboard/reports') %>" href="/dashboard/reports">
+            <i data-feather="printer"></i>
+            Relatórios
+          </a>
+        </li>
+        <li>
+          <a class="gf-nav-link<%= ' is-active' if path.start_with?('/dashboard/settings') %>" href="/dashboard/settings">
+            <i data-feather="settings"></i>
+            Configurações
+          </a>
+        </li>
+        <li>
+          <a class="gf-nav-link<%= ' is-active' if path.start_with?('/dashboard/profile') %>" href="/dashboard/profile">
+            <i data-feather="user"></i>
+            Perfil
+          </a>
+        </li>
+        <li>
+          <a class="gf-nav-link" href="/auth/logout">
+            <i data-feather="log-out"></i>
+            Sair
+          </a>
+        </li>
+      </ul>
+    </aside>
 
-      <!-- Main content -->
-      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+    <div class="gf-main">
+      <header class="gf-topbar">
+        <div class="gf-breadcrumb">
+          Monitorização · <strong>SIEM</strong>
+        </div>
+      </header>
+      <div class="gf-content">
         <%= yield %>
-      </main>
+      </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
-  <script>
-    feather.replace();
-  </script>
+  <script>feather.replace();</script>
 </body>
 </html>

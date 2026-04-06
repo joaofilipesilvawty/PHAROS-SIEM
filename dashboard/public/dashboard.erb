@@ -1,190 +1,180 @@
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-  <h1 class="h2">Dashboard</h1>
-  <div class="btn-toolbar mb-2 mb-md-0">
-    <div class="btn-group me-2">
-      <button type="button" class="btn btn-sm btn-outline-secondary">Hoje</button>
-      <button type="button" class="btn btn-sm btn-outline-secondary">Semana</button>
-      <button type="button" class="btn btn-sm btn-outline-secondary">Mês</button>
+<div class="gf-page-head">
+  <h1>Dashboard</h1>
+  <div class="gf-btn-group" title="Filtro de intervalo — por implementar">
+    <span class="gf-btn is-active">Hoje</span>
+    <span class="gf-btn">Semana</span>
+    <span class="gf-btn">Mês</span>
+  </div>
+</div>
+
+<div class="gf-row gf-row-4">
+  <div class="gf-stat gf-stat--critical">
+    <div class="gf-stat-label">Críticos</div>
+    <div class="gf-stat-value"><%= @metrics[:critical_count] %></div>
+  </div>
+  <div class="gf-stat gf-stat--high">
+    <div class="gf-stat-label">Altos</div>
+    <div class="gf-stat-value"><%= @metrics[:high_count] %></div>
+  </div>
+  <div class="gf-stat gf-stat--medium">
+    <div class="gf-stat-label">Médios</div>
+    <div class="gf-stat-value"><%= @metrics[:medium_count] %></div>
+  </div>
+  <div class="gf-stat gf-stat--low">
+    <div class="gf-stat-label">Baixos</div>
+    <div class="gf-stat-value"><%= @metrics[:low_count] %></div>
+  </div>
+</div>
+
+<div class="gf-row gf-row-2">
+  <div class="gf-panel">
+    <div class="gf-panel-h">Uso de recursos (%)</div>
+    <div class="gf-panel-b">
+      <canvas id="resourcesChart" height="200"></canvas>
+    </div>
+  </div>
+  <div class="gf-panel">
+    <div class="gf-panel-h">Atividade por hora</div>
+    <div class="gf-panel-b">
+      <canvas id="activityChart" height="200"></canvas>
     </div>
   </div>
 </div>
 
-<div class="row">
-  <!-- Alertas -->
-  <div class="col-md-3 mb-4">
-    <div class="card text-white bg-danger">
-      <div class="card-body">
-        <h5 class="card-title">Alertas Críticos</h5>
-        <p class="card-text display-4"><%= @metrics[:critical_count] %></p>
-      </div>
+<div class="gf-row gf-row-2">
+  <div class="gf-panel">
+    <div class="gf-panel-h">Últimos alertas</div>
+    <div class="gf-panel-b gf-table-wrap">
+      <table class="gf-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Tipo</th>
+            <th>Severidade</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @alerts.each do |alert| %>
+            <tr>
+              <td><%= alert[:timestamp].strftime("%Y-%m-%d %H:%M") %></td>
+              <td><%= alert[:alert_type] %></td>
+              <td><%= alert[:severity] %></td>
+              <td><%= alert[:status] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
     </div>
   </div>
-  <div class="col-md-3 mb-4">
-    <div class="card text-white bg-warning">
-      <div class="card-body">
-        <h5 class="card-title">Alertas Altos</h5>
-        <p class="card-text display-4"><%= @metrics[:high_count] %></p>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3 mb-4">
-    <div class="card text-white bg-info">
-      <div class="card-body">
-        <h5 class="card-title">Alertas Médios</h5>
-        <p class="card-text display-4"><%= @metrics[:medium_count] %></p>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3 mb-4">
-    <div class="card text-white bg-secondary">
-      <div class="card-body">
-        <h5 class="card-title">Alertas Baixos</h5>
-        <p class="card-text display-4"><%= @metrics[:low_count] %></p>
-      </div>
+
+  <div class="gf-panel">
+    <div class="gf-panel-h">Últimos logs</div>
+    <div class="gf-panel-b gf-table-wrap">
+      <table class="gf-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Tipo</th>
+            <th>Utilizador</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @logs.each do |log| %>
+            <tr>
+              <td><%= log[:timestamp].strftime("%Y-%m-%d %H:%M") %></td>
+              <td><%= log[:event_type] %></td>
+              <td><%= log[:user_id] %></td>
+              <td><%= log[:ip_address] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
 
-<div class="row">
-  <!-- Gráficos -->
-  <div class="col-md-6 mb-4">
-    <div class="card">
-      <div class="card-header">
-        <h5 class="card-title">Uso de Recursos</h5>
-      </div>
-      <div class="card-body">
-        <canvas id="resourcesChart" width="400" height="200"></canvas>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-6 mb-4">
-    <div class="card">
-      <div class="card-header">
-        <h5 class="card-title">Atividade por Hora</h5>
-      </div>
-      <div class="card-body">
-        <canvas id="activityChart" width="400" height="200"></canvas>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="row">
-  <!-- Últimos Alertas -->
-  <div class="col-md-6 mb-4">
-    <div class="card">
-      <div class="card-header">
-        <h5 class="card-title">Últimos Alertas</h5>
-      </div>
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-striped table-sm">
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Tipo</th>
-                <th>Severidade</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% @alerts.each do |alert| %>
-                <tr>
-                  <td><%= alert[:timestamp].strftime("%Y-%m-%d %H:%M") %></td>
-                  <td><%= alert[:alert_type] %></td>
-                  <td><%= alert[:severity] %></td>
-                  <td><%= alert[:status] %></td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Últimos Logs -->
-  <div class="col-md-6 mb-4">
-    <div class="card">
-      <div class="card-header">
-        <h5 class="card-title">Últimos Logs</h5>
-      </div>
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-striped table-sm">
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Tipo</th>
-                <th>Usuário</th>
-                <th>IP</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% @logs.each do |log| %>
-                <tr>
-                  <td><%= log[:timestamp].strftime("%Y-%m-%d %H:%M") %></td>
-                  <td><%= log[:event_type] %></td>
-                  <td><%= log[:user_id] %></td>
-                  <td><%= log[:ip_address] %></td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
-  // Gráfico de Recursos
+(function () {
+  var muted = '#8b8c9a';
+  var grid = '#2d2d38';
+  var purple = '#8b5cf6';
+  var purpleSoft = 'rgba(139, 92, 246, 0.25)';
+  var violet = '#a78bfa';
+
+  Chart.defaults.color = muted;
+  Chart.defaults.borderColor = grid;
+  Chart.defaults.font.family = "system-ui, sans-serif";
+
   new Chart(document.getElementById('resourcesChart'), {
-    type: 'line',
+    type: 'bar',
     data: {
       labels: ['CPU', 'Memória', 'Disco'],
       datasets: [{
-        label: 'Uso (%)',
+        label: 'Uso %',
         data: [
           <%= @metrics[:cpu_usage] %>,
           <%= @metrics[:memory_usage] %>,
           <%= @metrics[:disk_usage] %>
         ],
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.2)',
-          'rgba(54, 162, 235, 0.2)',
-          'rgba(255, 206, 86, 0.2)'
-        ],
-        borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)'
-        ],
+        backgroundColor: [purpleSoft, 'rgba(167, 139, 250, 0.2)', 'rgba(124, 58, 237, 0.2)'],
+        borderColor: [purple, violet, '#7c3aed'],
         borderWidth: 1
       }]
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
       scales: {
         y: {
           beginAtZero: true,
-          max: 100
+          max: 100,
+          grid: { color: grid },
+          ticks: { color: muted }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { color: muted }
         }
       }
     }
   });
 
-  // Gráfico de Atividade
   new Chart(document.getElementById('activityChart'), {
     type: 'line',
     data: {
       labels: <%= @activity_timeline[:labels].to_json %>,
       datasets: [{
-        label: 'Eventos por Hora',
+        label: 'Eventos / hora',
         data: <%= @activity_timeline[:data].to_json %>,
-        fill: false,
-        borderColor: 'rgb(75, 192, 192)',
-        tension: 0.1
+        fill: true,
+        backgroundColor: 'rgba(124, 58, 237, 0.12)',
+        borderColor: purple,
+        borderWidth: 2,
+        tension: 0.2,
+        pointRadius: 0,
+        pointHoverRadius: 4
       }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: grid },
+          ticks: { color: muted }
+        },
+        x: {
+          grid: { color: grid },
+          ticks: { color: muted, maxRotation: 45, minRotation: 0 }
+        }
+      }
     }
   });
+})();
 </script>

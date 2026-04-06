@@ -1,32 +1,38 @@
-<div class="container">
-  <div class="row justify-content-center">
-    <div class="col-md-6">
-      <div class="card mt-5">
-        <div class="card-header">
-          <h3 class="text-center">Login SIEM</h3>
-        </div>
-        <div class="card-body">
-          <% if @error %>
-            <div class="alert alert-danger" role="alert">
-              <%= @error %>
-            </div>
-          <% end %>
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar · SIEM</title>
+  <link rel="stylesheet" href="/css/siem-grafana.css">
+</head>
+<body class="gf-auth-page">
+  <div class="gf-auth-card">
+    <div class="gf-auth-card-h">
+      <h1>SIEM</h1>
+      <p>Inicia sessão na consola de segurança</p>
+    </div>
+    <div class="gf-auth-card-b">
+      <% if @error %>
+        <div class="gf-alert-error" role="alert"><%= @error %></div>
+      <% end %>
 
-          <form action="/auth/login" method="post">
-            <div class="mb-3">
-              <label for="username" class="form-label">Username</label>
-              <input type="text" class="form-control" id="username" name="username" required>
-            </div>
-            <div class="mb-3">
-              <label for="password" class="form-label">Senha</label>
-              <input type="password" class="form-control" id="password" name="password" required>
-            </div>
-            <div class="d-grid">
-              <button type="submit" class="btn btn-primary">Entrar</button>
-            </div>
-          </form>
+      <form action="/auth/login" method="post">
+        <div class="gf-form-field">
+          <label class="gf-form-label" for="username">Utilizador</label>
+          <input type="text" class="gf-form-input" id="username" name="username" required autocomplete="username">
         </div>
+        <div class="gf-form-field">
+          <label class="gf-form-label" for="password">Palavra-passe</label>
+          <input type="password" class="gf-form-input" id="password" name="password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="gf-btn-primary">Entrar</button>
+      </form>
+
+      <div class="gf-auth-foot">
+        Acesso reservado a administradores
       </div>
     </div>
   </div>
-</div>
+</body>
+</html>

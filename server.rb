@@ -192,7 +192,7 @@ module SIEM
     # Route Definitions
     # =============================================
     get '/login' do
-      erb :login
+      erb :login, layout: false
     end
 
     post '/auth/login' do
@@ -202,7 +202,7 @@ module SIEM
         redirect '/dashboard'
       else
         @error = result[:message]
-        erb :login
+        erb :login, layout: false
       end
     end
 

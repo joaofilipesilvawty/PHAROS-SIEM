@@ -1,29 +1,32 @@
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-  <h1 class="h2">Alertas</h1>
-  <a class="btn btn-sm btn-outline-secondary" href="/dashboard">Voltar</a>
+<div class="gf-page-head">
+  <h1>Alertas</h1>
+  <a class="gf-btn" href="/dashboard">← Dashboard</a>
 </div>
 
-<div class="table-responsive">
-  <table class="table table-striped table-sm">
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>Tipo</th>
-        <th>Severidade</th>
-        <th>Mensagem</th>
-        <th>Estado</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% (@alerts || []).each do |alert| %>
+<div class="gf-panel">
+  <div class="gf-panel-h">Todos os alertas</div>
+  <div class="gf-panel-b gf-table-wrap">
+    <table class="gf-table">
+      <thead>
         <tr>
-          <td><%= alert[:timestamp] ? alert[:timestamp].strftime('%Y-%m-%d %H:%M') : '-' %></td>
-          <td><%= alert[:alert_type] %></td>
-          <td><%= alert[:severity] %></td>
-          <td><%= alert[:message].to_s[0, 80] %><%= alert[:message].to_s.length > 80 ? '…' : '' %></td>
-          <td><%= alert[:status] %></td>
+          <th>Data</th>
+          <th>Tipo</th>
+          <th>Severidade</th>
+          <th>Mensagem</th>
+          <th>Estado</th>
         </tr>
-      <% end %>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        <% (@alerts || []).each do |alert| %>
+          <tr>
+            <td><%= alert[:timestamp] ? alert[:timestamp].strftime('%Y-%m-%d %H:%M') : '-' %></td>
+            <td><%= alert[:alert_type] %></td>
+            <td><%= alert[:severity] %></td>
+            <td><%= alert[:message].to_s[0, 80] %><%= alert[:message].to_s.length > 80 ? '…' : '' %></td>
+            <td><%= alert[:status] %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
 </div>
