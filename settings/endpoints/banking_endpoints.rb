@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   module BankingEndpoints
     def self.receive_transaction(request)
       request.body.rewind

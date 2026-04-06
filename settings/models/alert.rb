@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class Alert
     DS = DB[:alerts]
 
@@ -130,7 +130,12 @@ module SIEM
     end
 
     def self.update_status(id, status)
-      DS.where(id: id.to_i).update(status: status.to_s)
+      new_status = status.to_s
+      updated = DS.where(id: id.to_i).update(status: new_status)
+      if updated.to_i.positive? && %w[in_progress resolved ignored].include?(new_status)
+        OPSMON::RuntimeMetrics.inc_opsmon_alert_acked('default')
+      end
+      updated
     end
   end
 end

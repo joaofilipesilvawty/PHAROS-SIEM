@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Instalação em Linux (systemd) — SIEM com Oracle (JRuby + OJDBC em lib/) + Redis (opcional).
-# O utilizador siem precisa de JRuby no PATH (rbenv ou pacote do sistema).
+# Instalação em Linux (systemd) — OPSMON com Oracle (JRuby + OJDBC em lib/) + Redis (opcional).
+# O utilizador opsmon precisa de JRuby no PATH (rbenv ou pacote do sistema).
 
 set -e
 
@@ -20,59 +20,59 @@ fi
 
 echo "Pré-requisitos:"
 echo "  - Oracle DB acessível (ORACLE_* no .env)"
-echo "  - Migrações: como utilizador siem, após bundle install: bundle exec rake db:migrate"
+echo "  - Migrações: como utilizador opsmon, após bundle install: bundle exec rake db:migrate"
 echo "  - Redis opcional (rate limit / API keys)"
 echo ""
 
-if ! getent group siem >/dev/null; then
-  groupadd siem
+if ! getent group opsmon >/dev/null; then
+  groupadd opsmon
 fi
 
-if ! getent passwd siem >/dev/null; then
-  useradd -g siem -m -s /bin/bash siem
+if ! getent passwd opsmon >/dev/null; then
+  useradd -g opsmon -m -s /bin/bash opsmon
 fi
 
-INSTALL_DIR="/opt/siem"
+INSTALL_DIR="/opt/opsmon"
 mkdir -p "$INSTALL_DIR"
 
 cp -r . "$INSTALL_DIR/"
-chown -R siem:siem "$INSTALL_DIR"
+chown -R opsmon:opsmon "$INSTALL_DIR"
 
 cd "$INSTALL_DIR"
 
 if [ -f "$INSTALL_DIR/.bundle/config" ]; then
-  su - siem -s /bin/bash -c "cd $INSTALL_DIR && bundle install"
+  su - opsmon -s /bin/bash -c "cd $INSTALL_DIR && bundle install"
 else
-  su - siem -s /bin/bash -c "cd $INSTALL_DIR && bundle config set path 'vendor/bundle' && bundle install"
+  su - opsmon -s /bin/bash -c "cd $INSTALL_DIR && bundle config set path 'vendor/bundle' && bundle install"
 fi
 
-su - siem -s /bin/bash -c "cd $INSTALL_DIR && bundle exec rake db:migrate" || {
+su - opsmon -s /bin/bash -c "cd $INSTALL_DIR && bundle exec rake db:migrate" || {
   echo "Aviso: rake db:migrate falhou — executa manualmente após configurar Oracle."
 }
 
-mkdir -p /var/log/siem
-chown siem:siem /var/log/siem
+mkdir -p /var/log/opsmon
+chown opsmon:opsmon /var/log/opsmon
 
-if [ -f "$INSTALL_DIR/settings/config/siem.service" ]; then
-  cp "$INSTALL_DIR/settings/config/siem.service" /etc/systemd/system/
+if [ -f "$INSTALL_DIR/settings/config/opsmon.service" ]; then
+  cp "$INSTALL_DIR/settings/config/opsmon.service" /etc/systemd/system/
   systemctl daemon-reload
-  systemctl enable siem.service
+  systemctl enable opsmon.service
 else
-  echo "Aviso: settings/config/siem.service não encontrado — serviço systemd não instalado."
+  echo "Aviso: settings/config/opsmon.service não encontrado — serviço systemd não instalado."
 fi
 
 ADMIN_PASSWORD=$(openssl rand -hex 16)
 INGEST_KEY=$(openssl rand -hex 24)
 echo "ADMIN_PASSWORD=$ADMIN_PASSWORD" > "$INSTALL_DIR/.admin_password"
 chmod 600 "$INSTALL_DIR/.admin_password"
-chown siem:siem "$INSTALL_DIR/.admin_password"
+chown opsmon:opsmon "$INSTALL_DIR/.admin_password"
 
 cat > "$INSTALL_DIR/.env" << EOF
 # Oracle
 ORACLE_HOST=localhost
 ORACLE_PORT=1521
 ORACLE_SERVICE_NAME=XEPDB1
-ORACLE_USERNAME=siem
+ORACLE_USERNAME=opsmon
 ORACLE_PASSWORD=changeme
 
 # Redis (opcional)
@@ -92,14 +92,14 @@ INGEST_API_KEY=$INGEST_KEY
 EOF
 
 chmod 600 "$INSTALL_DIR/.env"
-chown siem:siem "$INSTALL_DIR/.env"
+chown opsmon:opsmon "$INSTALL_DIR/.env"
 
-if systemctl list-unit-files | grep -q '^siem.service'; then
-  systemctl start siem.service || true
+if systemctl list-unit-files | grep -q '^opsmon.service'; then
+  systemctl start opsmon.service || true
 fi
 
 echo ""
-echo "SIEM instalado em $INSTALL_DIR"
+echo "OPSMON instalado em $INSTALL_DIR"
 echo "Password admin (web): $ADMIN_PASSWORD  (também em $INSTALL_DIR/.admin_password)"
 echo "INGEST_API_KEY: $INGEST_KEY  (no .env)"
 echo "Ajusta ORACLE_* em $INSTALL_DIR/.env e confirma migrações (rake db:migrate)."

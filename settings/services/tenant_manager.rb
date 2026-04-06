@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class TenantManager
     def self.create_tenant(tenant_data)
       # Criar novo tenant

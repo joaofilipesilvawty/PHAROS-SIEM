@@ -3,7 +3,7 @@ require 'erb'
 require 'fileutils'
 require 'logger'
 
-module SIEM
+module OPSMON
   class Setup
     def self.initialize!
       setup_directories
@@ -22,16 +22,16 @@ module SIEM
     end
 
     def self.setup_logger
-      log_file = File.join(Dir.pwd, 'log', 'siem.log')
+      log_file = File.join(Dir.pwd, 'log', 'opsmon.log')
       logger = Logger.new(log_file, 5, 10 * 1024 * 1024) # 5 files, 10MB each
       logger.level = Logger.const_get(ENV['LOG_LEVEL']&.upcase || 'INFO')
-      SIEM.logger = logger
+      OPSMON.logger = logger
     end
 
     def self.load_configuration
       config_file = File.join(Dir.pwd, 'config', 'settings.yml')
       config_content = ERB.new(File.read(config_file)).result
-      SIEM.config = YAML.safe_load(config_content, aliases: true)
+      OPSMON.setup_yaml = YAML.safe_load(config_content, aliases: true)
     end
 
     def self.setup_database
@@ -39,7 +39,7 @@ module SIEM
       require 'java'
       require_relative '../../lib/ojdbc8-19.26.0.0.jar'
 
-      db_config = SIEM.config['database']
+      db_config = OPSMON.setup_yaml['database']
       connection_string = "jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=#{db_config['host']})(PORT=#{db_config['port']}))(CONNECT_DATA=(SERVICE_NAME=#{db_config['service_name']})))"
 
       DB = Sequel.connect(
@@ -55,7 +55,7 @@ module SIEM
         DB.execute("CREATE USER #{db_config['username']} IDENTIFIED BY #{db_config['password']}")
         DB.execute("GRANT CONNECT, RESOURCE TO #{db_config['username']}")
       rescue => e
-        SIEM.logger.warn("Database user already exists: #{e.message}")
+        OPSMON.logger.warn("Database user already exists: #{e.message}")
       end
 
       # Create tables
@@ -78,7 +78,7 @@ module SIEM
         updated_at: Time.now
       )
 
-      SIEM.logger.info("Created default admin user with password: #{password}")
+      OPSMON.logger.info("Created default admin user with password: #{password}")
     end
   end
 end

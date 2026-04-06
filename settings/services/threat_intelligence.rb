@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class ThreatIntelligence
     def self.analyze_threat(file_path)
       # Análise de ameaças usando nosso próprio sistema + VirusTotal

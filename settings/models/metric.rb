@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class Metric
     DS = DB[:metrics]
 
@@ -38,6 +38,7 @@ module SIEM
 
       id = DS.insert(metric_data)
       id ||= DS.max(:id)
+      OPSMON::RuntimeMetrics.inc_opsmon_metric_insert('default', metric_type.to_s)
       id
     end
 

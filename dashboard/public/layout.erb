@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SIEM</title>
-  <link rel="stylesheet" href="/css/siem-grafana.css">
+  <title>OPSMON</title>
+  <link rel="stylesheet" href="/css/opsmon-grafana.css">
 </head>
 <body>
   <% path = request.path_info %>
   <div class="gf-app">
     <aside class="gf-sidenav" aria-label="Navegação principal">
-      <div class="gf-sidenav-brand">SIEM <span>·</span> consola</div>
+      <div class="gf-sidenav-brand">OPSMON <span>·</span> consola</div>
       <ul class="gf-sidenav-nav">
         <li>
           <a class="gf-nav-link<%= ' is-active' if path == '/dashboard' %>" href="/dashboard">
@@ -66,7 +66,7 @@
     <div class="gf-main">
       <header class="gf-topbar">
         <div class="gf-breadcrumb">
-          Monitorização · <strong>SIEM</strong>
+          Monitorização · <strong>OPSMON</strong>
         </div>
       </header>
       <div class="gf-content">

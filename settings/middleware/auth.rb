@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class Auth
     def initialize(app)
       @app = app

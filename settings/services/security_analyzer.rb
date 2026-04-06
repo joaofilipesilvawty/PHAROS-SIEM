@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class SecurityAnalyzer
     def self.analyze_log(log)
       return unless log.is_a?(SecurityLog::Record)
@@ -20,7 +20,7 @@ module SIEM
     private
 
     def self.period_start
-      secs = SIEM.config.alert_thresholds[:multiple_transactions_period].to_i
+      secs = OPSMON.config.alert_thresholds[:multiple_transactions_period].to_i
       Time.now - secs
     end
 
@@ -31,7 +31,7 @@ module SIEM
         since: period_start
       )
 
-      return unless failed_attempts >= SIEM.config.alert_thresholds[:failed_login_attempts]
+      return unless failed_attempts >= OPSMON.config.alert_thresholds[:failed_login_attempts]
 
       Alert.create_from_security_log(
         log,
@@ -46,7 +46,7 @@ module SIEM
       details = JSON.parse(log.details.to_s)
       amount = details['amount'].to_f
 
-      if amount >= SIEM.config.alert_thresholds[:suspicious_transaction_amount]
+      if amount >= OPSMON.config.alert_thresholds[:suspicious_transaction_amount]
         Alert.create_from_security_log(
           log,
           'suspicious_transaction',
@@ -62,7 +62,7 @@ module SIEM
         since: period_start
       )
 
-      return unless recent_transactions >= SIEM.config.alert_thresholds[:multiple_transactions_count]
+      return unless recent_transactions >= OPSMON.config.alert_thresholds[:multiple_transactions_count]
 
       Alert.create_from_security_log(
         log,

@@ -1,4 +1,4 @@
-# SIEM Configuration File
+# OPSMON (PHAROS) — ficheiro de configuração opcional (bin/opsmon + Setup)
 
 # Database Settings
 database:
@@ -38,7 +38,7 @@ alerts:
 # Logging Settings
 logging:
   level: <%= ENV['LOG_LEVEL'] || 'info' %>
-  file: log/siem.log
+  file: log/opsmon.log
   max_size: 10485760 # 10MB
   max_files: 5
 

@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class SecurityLog
     DS = DB[:security_logs]
 

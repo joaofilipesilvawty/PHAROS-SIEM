@@ -3,10 +3,10 @@
 # =============================================
 require 'securerandom'
 
-module SIEM
+module OPSMON
   module Endpoints
     def self.health_check
-      SIEM::Database.test_connection(DB)
+      OPSMON::Database.test_connection(DB)
       { status: 'healthy', database: 'oracle' }
     rescue StandardError => e
       { status: 'unhealthy', error: e.message }
@@ -103,6 +103,7 @@ module SIEM
       end
 
       SecurityAnalyzer.analyze_log(log)
+      OPSMON::RuntimeMetrics.inc_opsmon_log('default', log.severity.to_s)
       { status: 'received', log_id: log.id }
     rescue JSON::ParserError
       { status: 'error', error: 'Invalid JSON body' }
@@ -143,6 +144,7 @@ module SIEM
       )
       id ||= DB[:alerts].max(:id)
       inst = Alert.find_by_id(id)
+      OPSMON::RuntimeMetrics.inc_opsmon_alert_created('default', payload[:severity].to_s)
       { alert: inst.to_hash }
     rescue JSON::ParserError
       { error: 'Invalid JSON body', status: 400 }

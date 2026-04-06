@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class User < Sequel::Model
     plugin :validation_helpers
     plugin :timestamps

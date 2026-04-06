@@ -1,6 +1,6 @@
 require 'rack/cors'
 
-module SIEM
+module OPSMON
   module Middleware
     def self.configure(app)
       app.use Rack::Cors do

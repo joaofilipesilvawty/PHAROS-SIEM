@@ -4,13 +4,13 @@ import json
 from datetime import datetime
 
 
-class SIEMClient:
+class OPSMONClient:
     def __init__(self, base_url="http://localhost:4567", ingest_api_key=None):
         self.base_url = base_url
         self.ingest_api_key = ingest_api_key or os.environ.get("INGEST_API_KEY", "")
 
     def send_login_attempt(self, user_id, success, ip_address, details=None):
-        """Envia um log de tentativa de login para o SIEM"""
+        """Envia um log de tentativa de login para o OPSMON"""
         log_data = {
             "event_type": "login_success" if success else "login_failed",
             "severity": "low" if success else "medium",
@@ -25,7 +25,7 @@ class SIEMClient:
     def send_transaction(
         self, user_id, amount, transaction_type, ip_address, details=None
     ):
-        """Envia um log de transação para o SIEM"""
+        """Envia um log de transação para o OPSMON"""
         log_data = {
             "event_type": "transaction",
             "severity": "low" if amount < 10000 else "medium",
@@ -38,7 +38,7 @@ class SIEMClient:
         return self._send_log(log_data)
 
     def send_account_access(self, user_id, ip_address, details=None):
-        """Envia um log de acesso à conta para o SIEM"""
+        """Envia um log de acesso à conta para o OPSMON"""
         log_data = {
             "event_type": "account_access",
             "severity": "low",
@@ -51,7 +51,7 @@ class SIEMClient:
         return self._send_log(log_data)
 
     def _send_log(self, log_data):
-        """Envia um log genérico para o SIEM"""
+        """Envia um log genérico para o OPSMON"""
         headers = {"Content-Type": "application/json"}
         if self.ingest_api_key:
             headers["X-API-Key"] = self.ingest_api_key
@@ -65,11 +65,11 @@ class SIEMClient:
 
 # Exemplo de uso
 if __name__ == "__main__":
-    siem = SIEMClient()
+    client = OPSMONClient()
 
     # Exemplo de tentativa de login
     print("Sending login attempt...")
-    response = siem.send_login_attempt(
+    response = client.send_login_attempt(
         user_id="user123",
         success=True,
         ip_address="192.168.1.1",
@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
     # Exemplo de transação
     print("\nSending transaction...")
-    response = siem.send_transaction(
+    response = client.send_transaction(
         user_id="user123",
         amount=15000,
         transaction_type="transfer",
@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
     # Exemplo de acesso à conta
     print("\nSending account access...")
-    response = siem.send_account_access(
+    response = client.send_account_access(
         user_id="user123", ip_address="192.168.1.1", details={"action": "view_balance"}
     )
     print(f"Response: {response}")

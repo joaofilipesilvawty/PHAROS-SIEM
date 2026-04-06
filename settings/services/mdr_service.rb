@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class MDRService
     def self.handle_incident(incident)
       # Gerenciamento de incidentes

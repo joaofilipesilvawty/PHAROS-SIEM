@@ -1,6 +1,6 @@
 require 'bcrypt'
 
-module SIEM
+module OPSMON
   class Admin
     DS = DB[:admins]
 
@@ -27,7 +27,7 @@ module SIEM
       row = begin
         DS.where(Sequel.function(:upper, :username) => u.upcase).first
       rescue StandardError => e
-        warn "[SIEM] Admin.authenticate: lookup UPPER(username) falhou (#{e.class}: #{e.message}); a usar varredura."
+        warn "[OPSMON] Admin.authenticate: lookup UPPER(username) falhou (#{e.class}: #{e.message}); a usar varredura."
         nil
       end
       row ||= DS.first(username: u)
@@ -43,7 +43,7 @@ module SIEM
       begin
         stored_hash = BCrypt::Password.new(hash_str)
       rescue BCrypt::Errors::InvalidHash => e
-        warn "[SIEM] Admin.authenticate: hash BCrypt inválido para #{u.inspect}: #{e.message}"
+        warn "[OPSMON] Admin.authenticate: hash BCrypt inválido para #{u.inspect}: #{e.message}"
         return nil
       end
 

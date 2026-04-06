@@ -10,9 +10,9 @@ require 'securerandom'
 Dotenv.load
 
 # =============================================
-# Configuração global SIEM
+# Configuração global OPSMON
 # =============================================
-module SIEM
+module OPSMON
   class Configuration
     attr_accessor :log_level, :alert_thresholds
 
@@ -36,6 +36,11 @@ module SIEM
     yield(config) if block_given?
   end
 
+  class << self
+    attr_accessor :logger
+    attr_accessor :setup_yaml
+  end
+
   # =============================================
   # Oracle via JRuby + OJDBC (lib/ojdbc8-*.jar)
   # =============================================
@@ -44,14 +49,14 @@ module SIEM
 
     def self.connect
       unless defined?(JRUBY_VERSION)
-        raise 'Este SIEM corre em JRuby para Oracle (OJDBC). Ex.: rbenv install "$(cat .ruby-version)" && rbenv local "$(cat .ruby-version)" && bundle install'
+        raise 'Este OPSMON corre em JRuby para Oracle (OJDBC). Ex.: rbenv install "$(cat .ruby-version)" && rbenv local "$(cat .ruby-version)" && bundle install'
       end
 
       host = ENV.fetch('ORACLE_HOST', 'localhost')
       port = ENV.fetch('ORACLE_PORT', '1521')
       service = ENV.fetch('ORACLE_SERVICE_NAME', 'XEPDB1')
-      user = ENV.fetch('ORACLE_USERNAME', 'siem')
-      password = ENV.fetch('ORACLE_PASSWORD', 'siem')
+      user = ENV.fetch('ORACLE_USERNAME', 'opsmon')
+      password = ENV.fetch('ORACLE_PASSWORD', 'opsmon')
 
       raise "OJDBC jar não encontrado: #{OJDBC_JAR}" unless File.exist?(OJDBC_JAR)
 
@@ -73,7 +78,15 @@ module SIEM
   end
 end
 
-DB = SIEM::Database.connection
+DB = OPSMON::Database.connection
+
+require_relative 'settings/observability/internal_metrics.rb'
+require_relative 'settings/observability/internal_metrics_history.rb'
+require_relative 'settings/observability/process_runtime_gauges.rb'
+require_relative 'settings/observability/runtime_metrics.rb'
+require_relative 'settings/observability/feature_flags.rb'
+require_relative 'settings/observability/monitor.rb'
+require_relative 'settings/observability/routes.rb'
 
 # Modelos e serviços
 require_relative 'settings/models/security_log.rb'
@@ -105,29 +118,30 @@ end
 begin
   if DB[:admins].count.zero?
     pwd = ENV['ADMIN_PASSWORD'] || SecureRandom.alphanumeric(12)
-    SIEM::Admin.create('admin', pwd)
-    warn "[SIEM] Utilizador admin criado (username: admin, password: #{pwd})"
+    OPSMON::Admin.create('admin', pwd)
+    warn "[OPSMON] Utilizador admin criado (username: admin, password: #{pwd})"
   end
 rescue StandardError => e
-  warn "[SIEM] Bootstrap admin ignorado: #{e.message}"
+  warn "[OPSMON] Bootstrap admin ignorado: #{e.message}"
 end
 
 # Initialize services
-SIEM::AIMLAnalyzer
-SIEM::ThreatIntelligence
-SIEM::APISecurity
-SIEM::TenantManager
-SIEM::MDRService
+OPSMON::AIMLAnalyzer
+OPSMON::ThreatIntelligence
+OPSMON::APISecurity
+OPSMON::TenantManager
+OPSMON::MDRService
 
 # =============================================
 # Server Application
 # =============================================
-module SIEM
+module OPSMON
   class Server < Sinatra::Base
     # =============================================
     # Middleware Configuration
     # =============================================
-    SIEM::Middleware.configure(self)
+    OPSMON::Middleware.configure(self)
+    register OPSMON::WebRoutes
 
     helpers do
       def latest_metric_scalar(metric_type)
@@ -167,7 +181,7 @@ module SIEM
           Server.settings.data_sources.each do |source, config|
             next unless config[:enabled]
 
-            warn "[SIEM] Collecting data from #{source}"
+            warn "[OPSMON] Collecting data from #{source}"
           end
           sleep interval.to_i
         end
@@ -175,6 +189,10 @@ module SIEM
 
       before do
         next if request.path == '/health'
+        next if request.path == '/opsmon/health'
+        next if request.path == '/opsmon/status'
+        next if request.path == '/opsmon/dashboard/ui'
+        next if request.path == '/opsmon/dashboard/dashboard.js'
         next if request.path == '/login'
         next if request.path == '/auth/login'
         next if request.path == '/auth/logout'
@@ -182,7 +200,7 @@ module SIEM
         next if request.path.start_with?('/dashboard')
         next if session[:admin_id] && request.path.start_with?('/api/')
 
-        unless SIEM::APISecurity.validate_request(request)
+        unless OPSMON::APISecurity.validate_request(request)
           halt 401, { error: 'Unauthorized' }.to_json
         end
       end
@@ -279,8 +297,8 @@ module SIEM
     get '/dashboard/settings' do
       authenticate_admin!
       @settings = {
-        alert_thresholds: SIEM.config.alert_thresholds,
-        log_level: SIEM.config.log_level
+        alert_thresholds: OPSMON.config.alert_thresholds,
+        log_level: OPSMON.config.log_level
       }
       erb :settings, layout: :layout
     end
@@ -297,7 +315,7 @@ module SIEM
 
     get '/health' do
       begin
-        SIEM::Database.test_connection(DB)
+        OPSMON::Database.test_connection(DB)
         { status: 'healthy', database: 'oracle' }.to_json
       rescue StandardError => e
         { status: 'unhealthy', error: e.message }.to_json
@@ -350,14 +368,14 @@ module SIEM
     # Admin authentication routes
     post '/admin/login' do
       content_type :json
-      result = SIEM::Endpoints.admin_login(request)
+      result = OPSMON::Endpoints.admin_login(request)
       status result[:status]
       result[:body]
     end
 
     post '/admin/logout' do
       content_type :json
-      result = SIEM::Endpoints.admin_logout(request)
+      result = OPSMON::Endpoints.admin_logout(request)
       status result[:status]
       result[:body]
     end
@@ -378,7 +396,7 @@ module SIEM
       end
 
       session_id = request.env['HTTP_AUTHORIZATION'].split(' ').last
-      admin = SIEM::Endpoints.verify_session(session_id)
+      admin = OPSMON::Endpoints.verify_session(session_id)
       halt 401, { error: 'Invalid or expired session' }.to_json unless admin
 
       @current_admin = admin
@@ -411,7 +429,7 @@ module SIEM
         File.open(temp_path, 'wb') { |f| f.write(file[:tempfile].read) }
 
         # Análise completa a partir do ficheiro (hash + assinaturas + VirusTotal)
-        result = SIEM::ThreatIntelligence.analyze_threat(temp_path)
+        result = OPSMON::ThreatIntelligence.analyze_threat(temp_path)
 
         # Clean up
         File.delete(temp_path)
@@ -435,7 +453,7 @@ module SIEM
         File.open(temp_path, 'wb') { |f| f.write(file[:tempfile].read) }
 
         # Analyze threat
-        result = SIEM::ThreatIntelligence.analyze_threat(temp_path)
+        result = OPSMON::ThreatIntelligence.analyze_threat(temp_path)
 
         # Clean up
         File.delete(temp_path)
@@ -449,4 +467,4 @@ module SIEM
 end
 
 # Start the server
-SIEM::Server.run! if __FILE__ == $0
+OPSMON::Server.run! if __FILE__ == $0

@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class AIMLAnalyzer
     def self.analyze_patterns(logs)
       # Análise de padrões usando ML

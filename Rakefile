@@ -22,7 +22,7 @@ namespace :admin do
       warn 'Define ADMIN_PASSWORD no ambiente (ex.: ADMIN_PASSWORD=minhasenha bundle exec rake admin:password)'
       exit 1
     end
-    SIEM::Admin.set_password!(user, pwd)
+    OPSMON::Admin.set_password!(user, pwd)
     puts "Password atualizada para o utilizador #{user.inspect}."
   end
 end

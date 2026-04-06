@@ -1,0 +1,18 @@
+[Unit]
+Description=OPSMON (PHAROS — Sinatra) — API e dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=opsmon
+Group=opsmon
+WorkingDirectory=/opt/opsmon
+EnvironmentFile=-/opt/opsmon/.env
+# Ajusta RUBY e BUNDLE no PATH do utilizador opsmon se necessário (rbenv, etc.)
+ExecStart=/bin/bash -lc 'cd /opt/opsmon && bundle exec ruby server.rb'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

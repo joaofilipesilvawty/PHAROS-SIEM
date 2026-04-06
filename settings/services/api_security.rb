@@ -1,6 +1,6 @@
 require 'jwt'
 
-module SIEM
+module OPSMON
   class APISecurity
     def self.secure_endpoint(endpoint)
       {

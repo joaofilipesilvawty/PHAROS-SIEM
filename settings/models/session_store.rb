@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   module SessionStore
     DS = DB[:sessions]
 

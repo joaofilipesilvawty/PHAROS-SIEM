@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class BankingMonitor
     def self.analyze_transaction(transaction)
       # Verificar transações suspeitas
@@ -11,7 +11,7 @@ module SIEM
     private
 
     def self.check_suspicious_amount(transaction)
-      return unless transaction[:amount].to_f >= SIEM.config.alert_thresholds[:suspicious_transaction_amount]
+      return unless transaction[:amount].to_f >= OPSMON.config.alert_thresholds[:suspicious_transaction_amount]
 
       Alert.create(
         alert_type: 'suspicious_transaction',
@@ -29,10 +29,10 @@ module SIEM
     def self.check_multiple_transactions(transaction)
       recent_transactions = DB[:transactions]
         .where(vat_number: transaction[:vat_number])
-        .where(Sequel.lit("timestamp > SYSDATE - #{SIEM.config.alert_thresholds[:multiple_transactions_period]}/86400"))
+        .where(Sequel.lit("timestamp > SYSDATE - #{OPSMON.config.alert_thresholds[:multiple_transactions_period]}/86400"))
         .count
 
-      if recent_transactions >= SIEM.config.alert_thresholds[:multiple_transactions_count]
+      if recent_transactions >= OPSMON.config.alert_thresholds[:multiple_transactions_count]
         Alert.create(
           alert_type: 'unusual_activity',
           severity: 'medium',
@@ -40,7 +40,7 @@ module SIEM
           details: {
             vat_number: transaction[:vat_number],
             transaction_count: recent_transactions,
-            period: SIEM.config.alert_thresholds[:multiple_transactions_period]
+            period: OPSMON.config.alert_thresholds[:multiple_transactions_period]
           }
         )
       end

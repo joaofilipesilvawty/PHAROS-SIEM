@@ -1,4 +1,4 @@
-module SIEM
+module OPSMON
   class ResponseAutomation
     def self.execute_response(alert)
       playbook = select_playbook(alert.alert_type, alert.severity)
