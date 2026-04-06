@@ -8,9 +8,11 @@ module OPSMON
     UI_DIR = File.join(__dir__, 'ui')
 
     def self.registered(app)
-      parse_json = lambda do
-        request.body.rewind
-        raw = request.body.read.to_s
+      # Recebe o Rack request da rota Sinatra — não usar `request` dentro de lambda sem argumento
+      # (NameError: request no módulo WebRoutes).
+      parse_json = lambda do |req|
+        req.body.rewind
+        raw = req.body.read.to_s
         raw.empty? ? {} : JSON.parse(raw)
       rescue JSON::ParserError
         nil
@@ -71,7 +73,7 @@ module OPSMON
       app.post '/opsmon/logs/:level' do
         content_type :json
         level = params['level'].to_s.downcase
-        payload = parse_json.call
+        payload = parse_json.call(request)
         halt 400, { error: 'Invalid JSON body' }.to_json if payload.nil?
 
         severity = case level
@@ -127,7 +129,7 @@ module OPSMON
       # Metrics
       app.post '/opsmon/metrics/collect' do
         content_type :json
-        payload = parse_json.call
+        payload = parse_json.call(request)
         halt 400, { error: 'Invalid JSON body' }.to_json if payload.nil?
 
         name = payload['name'].to_s
@@ -183,7 +185,7 @@ module OPSMON
       # Cache
       app.post '/opsmon/cache/set' do
         content_type :json
-        payload = parse_json.call
+        payload = parse_json.call(request)
         halt 400, { error: 'Invalid JSON body' }.to_json if payload.nil?
         halt 503, { error: 'Redis unavailable' }.to_json unless $redis
 
@@ -259,7 +261,7 @@ module OPSMON
       # Infrastructure
       app.post '/opsmon/infrastructure/system-metrics' do
         content_type :json
-        payload = parse_json.call
+        payload = parse_json.call(request)
         halt 400, { error: 'Invalid JSON body' }.to_json if payload.nil?
 
         records = {
@@ -280,7 +282,7 @@ module OPSMON
 
       app.post '/opsmon/infrastructure/process-info' do
         content_type :json
-        payload = parse_json.call
+        payload = parse_json.call(request)
         halt 400, { error: 'Invalid JSON body' }.to_json if payload.nil?
 
         cpu = payload['cpu_percent']
@@ -323,7 +325,7 @@ module OPSMON
 
       app.post '/opsmon/feature-flags/' do
         content_type :json
-        payload = parse_json.call
+        payload = parse_json.call(request)
         halt 400, { error: 'Invalid JSON body' }.to_json if payload.nil?
         flag = OPSMON::FeatureFlags.create(payload)
         status 201
@@ -334,7 +336,7 @@ module OPSMON
 
       app.put '/opsmon/feature-flags/:name' do
         content_type :json
-        payload = parse_json.call
+        payload = parse_json.call(request)
         halt 400, { error: 'Invalid JSON body' }.to_json if payload.nil?
         flag = OPSMON::FeatureFlags.update(params['name'], payload)
         halt 404, { error: 'Feature flag não encontrado' }.to_json if flag.nil?
