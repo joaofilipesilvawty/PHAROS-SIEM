@@ -1,5 +1,4 @@
 require 'yaml'
-require 'erb'
 require 'fileutils'
 require 'logger'
 
@@ -29,9 +28,37 @@ module OPSMON
     end
 
     def self.load_configuration
-      config_file = File.join(Dir.pwd, 'config', 'settings.yml')
-      config_content = ERB.new(File.read(config_file)).result
-      OPSMON.setup_yaml = YAML.safe_load(config_content, aliases: true)
+      config_file = File.expand_path('../settings.yml', __dir__)
+      raise "Ficheiro de config em falta: #{config_file}" unless File.file?(config_file)
+
+      raw = YAML.safe_load(File.read(config_file, encoding: 'UTF-8'), aliases: true)
+      OPSMON.setup_yaml = merge_settings_env(raw)
+    end
+
+    # Sobrepõe o YAML com ENV de forma explícita (sem ERB), evitando execução de código em templates.
+    def self.merge_settings_env(cfg)
+      return cfg unless cfg.is_a?(Hash)
+
+      if (db = cfg['database']).is_a?(Hash)
+        db['host'] = ENV.fetch('ORACLE_HOST', db['host'])
+        db['port'] = ENV.fetch('ORACLE_PORT', db['port']).to_s
+        db['service_name'] = ENV.fetch('ORACLE_SERVICE_NAME', db['service_name'])
+        db['username'] = ENV.fetch('ORACLE_USERNAME', db['username'])
+        db['password'] = ENV.fetch('ORACLE_PASSWORD', db['password'])
+      end
+
+      if (srv = cfg['server']).is_a?(Hash)
+        port = ENV['PORT'] || srv['port']
+        srv['port'] = port.nil? ? 4567 : port.to_i
+        srv['environment'] = ENV.fetch('RACK_ENV', srv['environment'])
+        srv['session_secret'] = ENV.fetch('SESSION_SECRET', srv['session_secret'])
+      end
+
+      if (log = cfg['logging']).is_a?(Hash)
+        log['level'] = ENV.fetch('LOG_LEVEL', log['level'])
+      end
+
+      cfg
     end
 
     def self.setup_database
@@ -42,18 +69,19 @@ module OPSMON
       db_config = OPSMON.setup_yaml['database']
       connection_string = "jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=#{db_config['host']})(PORT=#{db_config['port']}))(CONNECT_DATA=(SERVICE_NAME=#{db_config['service_name']})))"
 
-      DB = Sequel.connect(
+      db = Sequel.connect(
         adapter: db_config['adapter'],
         driver: db_config['driver'],
         url: connection_string,
         user: db_config['username'],
         password: db_config['password']
       )
+      Object.const_set(:DB, db)
 
       # Create schema if it doesn't exist
       begin
-        DB.execute("CREATE USER #{db_config['username']} IDENTIFIED BY #{db_config['password']}")
-        DB.execute("GRANT CONNECT, RESOURCE TO #{db_config['username']}")
+        db.execute("CREATE USER #{db_config['username']} IDENTIFIED BY #{db_config['password']}")
+        db.execute("GRANT CONNECT, RESOURCE TO #{db_config['username']}")
       rescue => e
         OPSMON.logger.warn("Database user already exists: #{e.message}")
       end
